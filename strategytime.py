@@ -8,6 +8,7 @@ import os.path
 layout = [
             [sg.Text("testing graph"), sg.Button("click me", key="button1"), sg.Button("kill"),
             sg.Button("fire")],
+            [sg.Checkbox("show radius", default=False, key="show_radius" )],
             [sg.Graph(canvas_size=(400,400), 
                     graph_bottom_left=(0,0),
                     graph_top_right=(400,400),
@@ -37,11 +38,17 @@ arrowfigures = []
 window = sg.Window("hallo",layout=layout)
 
 window.finalize() # now we can draw on graph
-circles = []
+circles = []  # container for shooting radius of towers
+towers = []   # container for towers
 
-circles.append(window["canvas"].draw_circle(center_location=(400,100), radius=5))
-archer_stay = window["canvas"].draw_image(filename = os.path.join("data","helmet1.png"), location = (350,100))
-archer_shoot = window["canvas"].draw_image(filename = os.path.join("data", "helmet2.png"), location = (8000,100))
+#circles.append(window["canvas"].draw_circle(center_location=(400,100), radius=5))
+
+tower_stay = window["canvas"].draw_image(filename = os.path.join("data","helmet1.png"), location = (350,100))
+tower_shoot = window["canvas"].draw_image(filename = os.path.join("data", "helmet2.png"), location = (8000,100))
+
+towers.append(tower_stay)
+circles.append(window["canvas"].draw_circle(center_location=(350,100), radius=100))
+
 for i,filename in enumerate(flamenames):
     flamefigures.append(window["canvas"].draw_image(filename = filename, location = (8000,100)))
 window["canvas"].relocate_figure(flamefigures[0], 200, 100)
@@ -61,8 +68,8 @@ while True:
     if event == sg.TIMEOUT_EVENT:
         print("tick-tack")
         window["circles_display"].update(str(circles))
-        for c in circles:
-            window["canvas"].move_figure(c, -5, 0)
+        #for c in circles:
+        #    window["canvas"].move_figure(c, -5, 0)
         for a in arrowfigures:
             window["canvas"].move_figure(a, -5, 2)
         #flame animation
@@ -76,20 +83,20 @@ while True:
             
         #archer reset
         if time.time() > end_fire:
-            window["canvas"].relocate_figure(archer_stay, 350, 100)
-            window["canvas"].relocate_figure(archer_shoot,1800, 100)
+            window["canvas"].relocate_figure(tower_stay, 350, 100)
+            window["canvas"].relocate_figure(tower_shoot,1800, 100)
     if event == sg.WINDOW_CLOSED:
         break
     if event == "button1":
         y = random.randint(10, 390)
         circles.append(window["canvas"].draw_circle(center_location=(400,y), radius=5))
-    if event == "kill":
-        if len(circles) > 0:
-            window["canvas"].delete_figure(circles[0])
-            circles.pop(0)
+    #if event == "kill":
+    #    if len(circles) > 0:
+    #        window["canvas"].delete_figure(circles[0])
+    #        circles.pop(0)
     if event == "fire":
-        window["canvas"].relocate_figure(archer_stay, 1800, 100)
-        window["canvas"].relocate_figure(archer_shoot, 350, 100)
+        window["canvas"].relocate_figure(tower_stay, 1800, 100)
+        window["canvas"].relocate_figure(tower_shoot, 350, 100)
         end_fire = time.time() +0.5
         #arrow
         arrowfigures.append(window["canvas"].draw_image(filename = os.path.join("data", "arrow.png"), location = (350,100)))
