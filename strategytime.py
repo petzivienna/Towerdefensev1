@@ -3,6 +3,7 @@
 import PySimpleGUI as sg
 import random
 import time
+import os.path 
 
 layout = [
             [sg.Text("testing graph"), sg.Button("click me", key="button1"), sg.Button("kill"),
@@ -16,14 +17,14 @@ layout = [
             [sg.Text("xxx", key="circles_display")],
         ]
         
-flamenames = ["flame1.png",
-              "flame2.png",
-              "flame3.png",
-              "flame4.png",
-              "flame5.png",
-              "flame6.png",
-              "flame7.png",
-              "flame8.png",
+flamenames = [os.path.join("data", "flame1.png"),
+              os.path.join("data", "flame2.png"),
+              os.path.join("data", "flame3.png"),
+              os.path.join("data", "flame4.png"),
+              os.path.join("data", "flame5.png"),
+              os.path.join("data", "flame6.png"),
+              os.path.join("data", "flame7.png"),
+              os.path.join("data", "flame8.png"),
               ]
 
 flamefigures = []
@@ -39,8 +40,8 @@ window.finalize() # now we can draw on graph
 circles = []
 
 circles.append(window["canvas"].draw_circle(center_location=(400,100), radius=5))
-archer_stay = window["canvas"].draw_image(filename = "archer_stay.png", location = (350,100))
-archer_shoot = window["canvas"].draw_image(filename = "archer_shoot.png", location = (8000,100))
+archer_stay = window["canvas"].draw_image(filename = os.path.join("data","helmet1.png"), location = (350,100))
+archer_shoot = window["canvas"].draw_image(filename = os.path.join("data", "helmet2.png"), location = (8000,100))
 for i,filename in enumerate(flamenames):
     flamefigures.append(window["canvas"].draw_image(filename = filename, location = (8000,100)))
 window["canvas"].relocate_figure(flamefigures[0], 200, 100)
@@ -48,7 +49,7 @@ end_flame = time.time() + 0.5/len(flamefigures) #full animation in 1 second
 i = 0 #which picture is actual
 
 
-Ice_Golem = window["canvas"].draw_image(filename = "golem.png", location = (100,150))
+Ice_Golem = window["canvas"].draw_image(filename = os.path.join("data", "golem.png"), location = (100,350))
 
 
 end_fire = 0
@@ -91,7 +92,7 @@ while True:
         window["canvas"].relocate_figure(archer_shoot, 350, 100)
         end_fire = time.time() +0.5
         #arrow
-        arrowfigures.append(window["canvas"].draw_image(filename = "arrow.png", location = (350,36)))
+        arrowfigures.append(window["canvas"].draw_image(filename = os.path.join("data", "arrow.png"), location = (350,100)))
 
 
     
