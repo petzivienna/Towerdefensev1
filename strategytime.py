@@ -5,10 +5,36 @@ import random
 import time
 import os.path 
 
+
+gold = 100
+stuff_to_buy = {"simple tower": 50 ,
+                "ice tower" : 65, 
+                "sniper tower": 75, 
+                "minelayer tower": 75,
+                }
+flamefigures = []
+arrowfigures = []
+circles = []  # container for shooting radius of towers
+towers = []   # container for towers
+my_towers = []
+end_fire = 0
+sell_factor = 0.5
+
 layout = [
-            [sg.Text("testing graph"), sg.Button("click me", key="button1"), sg.Button("kill"),
-            sg.Button("fire")],
-            [sg.Checkbox("show radius", default=False, key="show_radius" )],
+            [sg.Text("testing graph"), #sg.Button("click me", key="button1"), sg.Button("kill"),
+             sg.Button("fire")],
+            [sg.Text("gold:"), sg.Text(gold, key="gold_text")],
+            [sg.Text("shopping:"), 
+             sg.Table(stuff_to_buy.items(), headings=["name","price"], key="shopping", size=(20,5), select_mode=sg.TABLE_SELECT_MODE_BROWSE),
+             sg.Column(layout=[
+                [sg.Button("buy")],
+                [sg.Button("sell")],
+                ]),
+             sg.Table(my_towers, headings=["name", "buy $", "sell $"], col_widths=(25,5,5), key="my_towers", size=(40,5)),
+             ],
+
+
+            [sg.Checkbox("show radius", default=False, key="show_radius" ), sg.Text("status: "), sg.Text("buy something", key="status_text")],
             [sg.Graph(canvas_size=(400,400), 
                     graph_bottom_left=(0,0),
                     graph_top_right=(400,400),
@@ -28,18 +54,13 @@ flamenames = [os.path.join("data", "flame1.png"),
               os.path.join("data", "flame8.png"),
               ]
 
-flamefigures = []
-
-
-arrowfigures = []
 
 
 
-window = sg.Window("hallo",layout=layout)
+window = sg.Window("hallo",layout=layout, size=(800,600))
 
 window.finalize() # now we can draw on graph
-circles = []  # container for shooting radius of towers
-towers = []   # container for towers
+
 
 #circles.append(window["canvas"].draw_circle(center_location=(400,100), radius=5))
 
@@ -59,7 +80,6 @@ i = 0 #which picture is actual
 Ice_Golem = window["canvas"].draw_image(filename = os.path.join("data", "golem.png"), location = (100,350))
 
 
-end_fire = 0
 
 
 while True:
@@ -87,9 +107,9 @@ while True:
             window["canvas"].relocate_figure(tower_shoot,1800, 100)
     if event == sg.WINDOW_CLOSED:
         break
-    if event == "button1":
-        y = random.randint(10, 390)
-        circles.append(window["canvas"].draw_circle(center_location=(400,y), radius=5))
+    #if event == "button1":
+    #    y = random.randint(10, 390)
+    #    circles.append(window["canvas"].draw_circle(center_location=(400,y), radius=5))
     #if event == "kill":
     #    if len(circles) > 0:
     #        window["canvas"].delete_figure(circles[0])
@@ -100,6 +120,27 @@ while True:
         end_fire = time.time() +0.5
         #arrow
         arrowfigures.append(window["canvas"].draw_image(filename = os.path.join("data", "arrow.png"), location = (350,100)))
+    
+    if event == "buy":
+        # what kind of tower is selected in the shop_list? 
+        tower_to_buy = values["shopping"][0] # is index of row
+        print("selected index:", tower_to_buy)
+        print(list(window["shopping"].get())[tower_to_buy])
+        what = list(window["shopping"].get())[tower_to_buy]
+        #my_towers.append(what)
+        
+        buy_price = int(what[1])
+        if gold - buy_price < 0:
+            sg.PopupError("you can not afford to buy this")
+            continue
+        gold -= buy_price
+        window["gold_text"].update(gold)
+        sell_price = round(buy_price * sell_factor, 0)
+        what = [what[0], what[1], sell_price]
+        my_towers.append(what)
+        window["my_towers"].update(values = my_towers)
+        #break
+
 
 
     
