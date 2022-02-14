@@ -223,6 +223,7 @@ class Viewer:
         next_frame = self.playtime2 + self.duration_one_flame_frame
         running = True
         waypointmodus = False
+        waypoints = []
         while running:
             # pysimpleGui
             # -------------- tkinter / pysimplegui mainloop ------------------------
@@ -348,6 +349,18 @@ class Viewer:
                 # -----pygame clear screen -----
                 self.screen.fill((255,255,255))
                 # draw flame
+                # ----- draw waypoint circles and lines ------
+                if len(waypoints) == 1:
+                    pygame.draw.circle(self.screen, (255,0,255), waypoints[0], 5)
+                elif len(waypoints) > 1:
+                    for wp in waypoints:
+                        pygame.draw.circle(self.screen, (255,0,255), wp, 5)
+                    for j, wp in enumerate(waypoints[1:], 1):
+                        old = waypoints[j-1]
+                        pygame.draw.line(self.screen, (128,0,128), old, wp, 2)
+
+
+
 
                 self.screen.blit(Viewer.flame_images[i], (200,200))
                 self.screen.blit(self.tower_image, (400,100))
