@@ -237,12 +237,12 @@ class Viewer:
                 for i in selected:
                     self.waypoints.pop(i)
                 self.window["waypointliste"].update(values=self.waypoints)
-                for tank in Viewer.tangroup:
+                for tank in Viewer.tankgroup:
                     tank.waypoints = self.waypoints
                     if len(self.waypoints)>0:
                         tank.waypoint = self.waypoints[0]
                     else:
-                        tank.waypoitn = None
+                        tank.waypoint = None
 
             if event == "waypointbutton":
                 if not waypointmodus:
