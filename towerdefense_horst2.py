@@ -151,8 +151,10 @@ class Viewer:
         # ----- sprite groups ----
         #self.allgroup = pygame.sprite.LayeredUpdates()  # for drawing with layers
         #self.tankgroup = pygame.sprite.Group()
+        # set waypoints
+        self.waypoints = []
         # ---- test tank ---
-        self.player1 = Tank(image_name = "tank_sand.png", correction_angle=90, move_speed=0, acceleration=2)
+        self.enemy1 = Tank(image_name = "tank_sand.png", correction_angle=90, move_speed=0, acceleration=2)
         # the tower image should be appear in the pygame window (canvas2) as well as in the pysimplegui graph (canvas1)
 
         self.tower_image = Viewer.images["barrelRust_top.png"][0]
@@ -223,18 +225,18 @@ class Viewer:
         next_frame = self.playtime2 + self.duration_one_flame_frame
         running = True
         waypointmodus = False
-        waypoints = []
+
         while running:
             # pysimpleGui
             # -------------- tkinter / pysimplegui mainloop ------------------------
             event, values = self.window.read(timeout=1)
 
             if event == "delete waypoint":
-                waypoints = self.window["waypointliste"].get_list_values()
+                #waypoints = self.window["waypointliste"].get_list_values()
                 selected = self.window["waypointliste"].get_indexes()
                 for i in selected:
-                    waypoints.pop(i)
-                self.window["waypointliste"].update(values=waypoints)
+                    self.waypoints.pop(i)
+                self.window["waypointliste"].update(values=self.waypoints)
 
             if event == "waypointbutton":
                 if not waypointmodus:
@@ -243,6 +245,12 @@ class Viewer:
                 else:
                     waypointmodus = False
                     self.window["waypointbutton"].update(text="set waypoints")
+                    # done wurde geklickt
+                    # alle tanks sollen diese waypoints übernehmen
+                    for tank in Viewer.tankgroup:
+                        tank.waypoints = self.waypoints
+                        if len(self.waypoints) > 0:
+                            tank.waypoint = self.waypoints[0]
 
             if event == "pause":
                 Viewer.pause = values["pause"]
@@ -293,9 +301,9 @@ class Viewer:
                 for e in pygame_events:
                     if (e.type == pygame.MOUSEBUTTONUP) and waypointmodus:
                         # put the pygame mouse position into the waypointlist
-                        waypoints = self.window["waypointliste"].get_list_values()
-                        waypoints.append(pygame.mouse.get_pos())
-                        self.window["waypointliste"].update(values=waypoints )
+                        #waypoints = self.window["waypointliste"].get_list_values()
+                        self.waypoints.append(pygame.mouse.get_pos())
+                        self.window["waypointliste"].update(values=self.waypoints )
 
                     #print("xx",e)
                     #print("dict:", e.dict)
@@ -350,13 +358,13 @@ class Viewer:
                 self.screen.fill((255,255,255))
                 # draw flame
                 # ----- draw waypoint circles and lines ------
-                if len(waypoints) == 1:
-                    pygame.draw.circle(self.screen, (255,0,255), waypoints[0], 5)
-                elif len(waypoints) > 1:
-                    for wp in waypoints:
+                if len(self.waypoints) == 1:
+                    pygame.draw.circle(self.screen, (255,0,255), self.waypoints[0], 5)
+                elif len(self.waypoints) > 1:
+                    for wp in self.waypoints:
                         pygame.draw.circle(self.screen, (255,0,255), wp, 5)
-                    for j, wp in enumerate(waypoints[1:], 1):
-                        old = waypoints[j-1]
+                    for j, wp in enumerate(self.waypoints[1:], 1):
+                        old = self.waypoints[j-1]
                         pygame.draw.line(self.screen, (128,0,128), old, wp, 2)
 
 
@@ -373,6 +381,11 @@ class Viewer:
 
                 # ---------- blit all sprites --------------
                 self.allgroup.draw(self.screen)
+                # --- blit red line from each tank to his next waypoint
+                for tank in Viewer.tankgroup:
+                    if tank.waypoint is not None:
+                        #print("line from", tank.pos, "to", tank.waypoint)
+                        pygame.draw.line(self.screen, (255,0,0), tank.pos, tank.waypoint, 1)
 
                 ## doenst not work: print(pygame.mouse.get_pos())
                 pygame.display.update()  # need to be called each loop
@@ -521,8 +534,13 @@ class VectorSprite(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.center = oldcenter
 
+    def get_next_waypoint(self):
+        pass
+
+
     def update(self, seconds):
         """calculate movement, position and bouncing on edge"""
+        self.get_next_waypoint()
         self.age += seconds
         # do nothing if negative age ( sprite will appear in the future, not yet)
         if self.age < 0:
@@ -560,7 +578,7 @@ class VectorSprite(pygame.sprite.Sprite):
             self.move_speed += self.acceleration * seconds
             #print(self.move_speed)
             self.move_speed = min(self.move_speed, self.move_speed_max)
-            if self.move_speed > 0 and self.move_direction.length() > 0:
+            if (self.waypoint is not None) and (self.move_speed > 0) and (self.move_direction.length() > 0):
                 self.pos += self.move_direction.normalize() * self.move_speed *  seconds
             #self.wallcheck()
         # print("rect:", self.pos.x, self.pos.y)
@@ -569,7 +587,9 @@ class VectorSprite(pygame.sprite.Sprite):
 class Tank(VectorSprite):
 
     def __post_init__(self):
-        pass
+        print("tank post init")
+        self.waypoints = []
+        self.waypoint = None
 
 
 
