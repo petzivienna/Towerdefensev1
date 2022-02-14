@@ -53,7 +53,12 @@ class Viewer:
     layout = [
             [sg.Text("testing graph"), #sg.Button("click me", key="button1"), sg.Button("kill"),
              sg.Button("fire"),
-             sg.Text("play the game", size=(50,1), text_color="yellow", key="hint", font=("Arial", 17, "bold"), )],
+             sg.Text("play the game", size=(20,1), text_color="yellow", key="hint", font=("Arial", 17, "bold"), ),
+             sg.Button("click to set waypoints", key="waypointbutton", size=(18,1)),
+             sg.Text("waypoints:"),
+             sg.Listbox(values=[], size=(10,5), key="waypointliste"),
+             sg.Button("delete waypoint"),
+             ],
             [sg.Text("gold:"), sg.Text(Game.gold, key="gold_text"), sg.Text("shopping:"), 
              sg.Checkbox("show radius", default=False, key="show_radius" ), sg.Text("status: "), sg.Text("buy something", key="status_text")],
             [sg.Graph(canvas_size=(200,100), key="canvas1", graph_bottom_left=(0,100), graph_top_right=(200,0),enable_events=True, background_color= "purple"),
@@ -217,10 +222,26 @@ class Viewer:
         #next_frame = time.time() + self.duration_one_flame_frame
         next_frame = self.playtime2 + self.duration_one_flame_frame
         running = True
+        waypointmodus = False
         while running:
             # pysimpleGui
             # -------------- tkinter / pysimplegui mainloop ------------------------
             event, values = self.window.read(timeout=1)
+
+            if event == "delete waypoint":
+                waypoints = self.window["waypointliste"].get_list_values()
+                selected = self.window["waypointliste"].get_indexes()
+                for i in selected:
+                    waypoints.pop(i)
+                self.window["waypointliste"].update(values=waypoints)
+
+            if event == "waypointbutton":
+                if not waypointmodus:
+                    waypointmodus = True
+                    self.window["waypointbutton"].update(text="done")
+                else:
+                    waypointmodus = False
+                    self.window["waypointbutton"].update(text="set waypoints")
 
             if event == "pause":
                 Viewer.pause = values["pause"]
@@ -269,6 +290,12 @@ class Viewer:
                 # ---- pygame part (mainloop ) ----------
                 pygame_events = pygame.event.get()
                 for e in pygame_events:
+                    if e.type == pygame.MOUSEBUTTONUP:
+                        # put the pygame mouse position into the waypointlist
+                        waypoints = self.window["waypointliste"].get_list_values()
+                        waypoints.append(pygame.mouse.get_pos())
+                        self.window["waypointliste"].update(values=waypoints )
+
                     #print("xx",e)
                     #print("dict:", e.dict)
                     #print("type:", e.type)
