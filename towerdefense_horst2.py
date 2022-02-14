@@ -89,7 +89,7 @@ class Viewer:
     def __init__(self):
         self.window = sg.Window("hallo",
                     layout=Viewer.layout,
-                    size=(800,200),
+                    size=(800,300),
                     location=(200,20),  # absolute coordinate topleft corner of GUI window
                     return_keyboard_events=True,
                     finalize=True
@@ -243,6 +243,7 @@ class Viewer:
                         tank.waypoint = self.waypoints[0]
                     else:
                         tank.waypoint = None
+                    tank.i = 0
 
             if event == "waypointbutton":
                 if not waypointmodus:
@@ -342,7 +343,7 @@ class Viewer:
                 #    break
 
 
-                pygame.display.set_caption(f"mousepos: {pygame.mouse.get_pos()}")
+                pygame.display.set_caption(f"mousepos: {pygame.mouse.get_pos()} tank speed: {self.enemy1.move_speed}")
 
 
 
@@ -603,6 +604,8 @@ class Tank(VectorSprite):
         if self.waypoint is None:
             return
         self.move_direction = self.waypoint - self.pos
+        flipped = pygame.Vector2(self.move_direction.x, -self.move_direction.y)
+        self.set_angle(flipped.angle_to(pygame.Vector2(1,0)))
         if self.move_direction.length() < Tank.near_enough:
             self.i += 1
             if self.i == len(self.waypoints):
