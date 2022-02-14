@@ -291,7 +291,7 @@ class Viewer:
                 # ---- pygame part (mainloop ) ----------
                 pygame_events = pygame.event.get()
                 for e in pygame_events:
-                    if e.type == pygame.MOUSEBUTTONUP:
+                    if (e.type == pygame.MOUSEBUTTONUP) and waypointmodus:
                         # put the pygame mouse position into the waypointlist
                         waypoints = self.window["waypointliste"].get_list_values()
                         waypoints.append(pygame.mouse.get_pos())
