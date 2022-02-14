@@ -591,11 +591,24 @@ class VectorSprite(pygame.sprite.Sprite):
         self.rect.center = (int(round(self.pos.x, 0)), int(round(self.pos.y, 0)))
 
 class Tank(VectorSprite):
+    near_enough = 10 # pixel
 
     def __post_init__(self):
         print("tank post init")
         self.waypoints = []
         self.waypoint = None
+        self.i = 0
+
+    def get_next_waypoint(self):
+        if self.waypoint is None:
+            return
+        self.move_direction = self.waypoint - self.pos
+        if self.move_direction.length() < Tank.near_enough:
+            self.i += 1
+            if self.i == len(self.waypoints):
+                self.i = 0
+            self.waypoint = self.waypoints[self.i]
+
 
 
 
