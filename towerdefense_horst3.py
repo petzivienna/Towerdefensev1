@@ -63,7 +63,8 @@ class Game:
 
 class Viewer:
     # source_path = pathlib.Path.cwd() # get current work directory
-    resolution = (800, 600)  # pygame window size in pixel.
+    resolution = (1024, 800)  # pygame window size in pixel.
+    backgroundimage = None
     # flamenames = []
     # flamefigures = []
     flame_images = []
@@ -101,6 +102,7 @@ class Viewer:
                 [sg.Text("waypoints:"), ],
                 [sg.Button("click to set waypoints", key="waypointbutton", size=(18, 1)),],
                 [sg.Button("delete waypoint"),],
+                [sg.Button("export waypoints")],
             ]),
             sg.Column([
 
@@ -132,6 +134,7 @@ class Viewer:
                 size=(20, 5),
                 select_mode=sg.TABLE_SELECT_MODE_BROWSE,
             ),
+            sg.Button("load image"),
             sg.Column(
                 layout=[
                     [sg.Text("$:"),
@@ -304,6 +307,7 @@ class Viewer:
         next_frame = self.playtime2 + self.duration_one_flame_frame
         running = True
         waypointmodus = False
+        backgroundfile = None
 
         while running:
             # pysimpleGui
@@ -323,6 +327,26 @@ class Viewer:
                     else:
                         tank.waypoint = None
                     tank.i = 0
+            if event == "load image":
+                backgroundfile = sg.popup_get_file("please choose background image file")
+                if backgroundfile is None:
+                    continue
+                Viewer.backgroundimage = pygame.image.load(backgroundfile)
+            if event == "export waypoints":
+                # get values of Listbox "waypointliste"
+                my_waypoints = self.window["waypointliste"].get_list_values() # list
+                if backgroundfile is None:
+                    sg.PopupError("please select backgroundimage before exporting waypoints")
+                    continue
+                pathlib.Path(backgroundfile).stem
+                waypointfilename = "data/maps/" + pathlib.Path(backgroundfile).stem + ".txt"
+                with open(waypointfilename, "w") as myfile:
+                    for line in my_waypoints:
+                        x,y = line
+                        myfile.write( f"{x},{y}\n")
+                sg.PopupOK("waypointfile written")
+
+
 
             if event == "waypointbutton":
                 if not waypointmodus:
@@ -440,7 +464,10 @@ class Viewer:
                 self.window["playtime2"].update(self.playtime2)
 
                 # -----pygame clear screen -----
-                self.screen.fill((255, 255, 255))
+                if Viewer.backgroundimage is None:
+                    self.screen.fill((255, 255, 255)) # fill screen white
+                else:
+                    self.screen.blit(Viewer.backgroundimage, (0,0))
                 # draw flame
                 # ----- draw waypoint circles and lines ------
                 if len(self.waypoints) == 1:
