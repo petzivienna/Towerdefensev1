@@ -307,6 +307,7 @@ class Viewer:
         next_frame = self.playtime2 + self.duration_one_flame_frame
         running = True
         waypointmodus = False
+        place_tower_modus = False
         backgroundfile = None
 
         while running:
@@ -389,6 +390,7 @@ class Viewer:
                 what = [what[0], what[1], sell_price]
                 Viewer.my_towers.append(what)
                 self.window["my_towers"].update(values=Viewer.my_towers)
+                place_tower_modus = True
                 # break
 
             if event == "sell":
@@ -415,7 +417,9 @@ class Viewer:
                         # waypoints = self.window["waypointliste"].get_list_values()
                         self.waypoints.append(pygame.mouse.get_pos())
                         self.window["waypointliste"].update(values=self.waypoints)
-
+                    if (e.type == pygame.MOUSEBUTTONDOWN) and place_tower_modus:
+                        # TODO: place tower in pygame window
+                        place_tower_modus = False
                     # print("xx",e)
                     # print("dict:", e.dict)
                     # print("type:", e.type)
@@ -463,11 +467,16 @@ class Viewer:
                 # self.window["playtime1"].update(self.playtime1)
                 self.window["playtime2"].update(self.playtime2)
 
+                # =================================== CLEAR SCREEN ===========================
                 # -----pygame clear screen -----
                 if Viewer.backgroundimage is None:
                     self.screen.fill((255, 255, 255)) # fill screen white
                 else:
                     self.screen.blit(Viewer.backgroundimage, (0,0))
+                # mousepointer is circle ?
+                if place_tower_modus:
+                    color = (random.randint(0,255),random.randint(0,255),random.randint(0,255) )
+                    pygame.draw.circle(self.screen, color, pygame.mouse.get_pos(), 50,2)
                 # draw flame
                 # ----- draw waypoint circles and lines ------
                 if len(self.waypoints) == 1:
