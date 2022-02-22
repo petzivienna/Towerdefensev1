@@ -65,6 +65,7 @@ class Viewer:
     # source_path = pathlib.Path.cwd() # get current work directory
     resolution = (1024, 800)  # pygame window size in pixel.
     backgroundimage = None
+    #maskimage = None  # test maskgroup instead
     # flamenames = []
     # flamefigures = []
     flame_images = []
@@ -83,6 +84,7 @@ class Viewer:
     towergroup = pygame.sprite.Group()
     shellgroup = pygame.sprite.Group()
     cursorgroup = pygame.sprite.GroupSingle()
+    maskgroup = pygame.sprite.GroupSingle()
     images = {}
     # -------- gui --------
     layout = [
@@ -218,6 +220,8 @@ class Viewer:
         # pygame.display.init() # already done by display.set_mode?
 
         Tank.groups = Viewer.allgroup, Viewer.tankgroup
+        Tower.groups = Viewer.allgroup, Viewer.towergroup
+        MaskSprite.groups = Viewer.maskgroup
 
         self.load_resources()
         # ----- sprite groups ----
@@ -259,6 +263,15 @@ class Viewer:
     def load_resources(self):
         # load pygame stuff
         # gather all flame pictures into Viewer.flameimages list
+        # ------------- load maps ---------
+        Viewer.backgroundimage = pygame.image.load("data/maps/petermap2.png")
+        #Viewer.maskimage = pygame.image.load("data/maps/petermap2_mask.png")
+        # create mask sprite:
+        MaskSprite(image=pygame.image.load("data/maps/petermap2_mask.png"))
+
+
+        #-------------- load tileset, sprites etc ------------
+
         p = pathlib.Path("data")
         for file in p.iterdir():
             # print(file, file.stem, file.suffix)
@@ -308,7 +321,10 @@ class Viewer:
         running = True
         waypointmodus = False
         place_tower_modus = False
+        my_tower = None
         backgroundfile = None
+        red_cross = True
+        bigmask = Viewer.maskgroup.sprite
 
         while running:
             # pysimpleGui
@@ -333,6 +349,7 @@ class Viewer:
                 if backgroundfile is None:
                     continue
                 Viewer.backgroundimage = pygame.image.load(backgroundfile)
+                Viewer.maskimage = pygame.image.load(backgroundfile[:-4]+"_mask.png")
             if event == "export waypoints":
                 # get values of Listbox "waypointliste"
                 my_waypoints = self.window["waypointliste"].get_list_values() # list
@@ -391,6 +408,7 @@ class Viewer:
                 Viewer.my_towers.append(what)
                 self.window["my_towers"].update(values=Viewer.my_towers)
                 place_tower_modus = True
+                my_tower = Tower(image_name="barrelBlack_top.png" )
                 # break
 
             if event == "sell":
@@ -412,17 +430,6 @@ class Viewer:
                 # ---- pygame part (mainloop ) ----------
                 pygame_events = pygame.event.get()
                 for e in pygame_events:
-                    if (e.type == pygame.MOUSEBUTTONUP) and waypointmodus:
-                        # put the pygame mouse position into the waypointlist
-                        # waypoints = self.window["waypointliste"].get_list_values()
-                        self.waypoints.append(pygame.mouse.get_pos())
-                        self.window["waypointliste"].update(values=self.waypoints)
-                    if (e.type == pygame.MOUSEBUTTONDOWN) and place_tower_modus:
-                        # TODO: place tower in pygame window
-                        place_tower_modus = False
-                    # print("xx",e)
-                    # print("dict:", e.dict)
-                    # print("type:", e.type)
                     if e.type == pygame.WINDOWENTER:
                         print("-----------------------------------------------------")
                         print("----------- mouse entered pygame window -------------")
@@ -438,6 +445,25 @@ class Viewer:
                         print(
                             "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwheeeeeeeeeeeeeeeeeeeeeeeeeeelllllllllllllll"
                         )
+                    if (e.type == pygame.MOUSEBUTTONUP) and waypointmodus:
+                        # put the pygame mouse position into the waypointlist
+                        # waypoints = self.window["waypointliste"].get_list_values()
+                        self.waypoints.append(pygame.mouse.get_pos())
+                        self.window["waypointliste"].update(values=self.waypoints)
+
+                    if (e.type == pygame.MOUSEBUTTONDOWN):
+
+                        # ---------- place tower --------------
+                        if my_tower is not None:
+                            if not red_cross:
+                                #place_tower_modus = False
+                                my_tower.placemodus = False
+                                my_tower = None
+                                red_cross = False
+                    # print("xx",e)
+                    # print("dict:", e.dict)
+                    # print("type:", e.type)
+
                 pressed_keys = pygame.key.get_pressed()
                 if any(pressed_keys):
                     print([k for k in pressed_keys if k])
@@ -474,10 +500,31 @@ class Viewer:
                 else:
                     self.screen.blit(Viewer.backgroundimage, (0,0))
                 # mousepointer is circle ?
-                if place_tower_modus:
+                if my_tower is not None:
+                    if bigmask:
+                        # if Viewer.maskgroup(): # any strite at all inside maskgropu?
+                        collisions = pygame.sprite.collide_mask(bigmask, my_tower)
+                        if collisions is None:
+                            red_cross = False
+                        else:
+                            red_cross = True
+                    print(red_cross)
                     color = (random.randint(0,255),random.randint(0,255),random.randint(0,255) )
                     pygame.draw.circle(self.screen, color, pygame.mouse.get_pos(), 50,2)
-                # draw flame
+                    if red_cross:
+                        pygame.draw.line(self.screen, (255,0,0),
+                                         pygame.mouse.get_pos()+pygame.Vector2(-50,-50),
+                                         pygame.mouse.get_pos()+pygame.Vector2(50,50),
+                                         4)
+                        pygame.draw.line(self.screen, (255, 0, 0),
+                                         pygame.mouse.get_pos() + pygame.Vector2(-50, 50),
+                                         pygame.mouse.get_pos() + pygame.Vector2(50, -50),
+                                         4)
+
+
+
+
+
                 # ----- draw waypoint circles and lines ------
                 if len(self.waypoints) == 1:
                     pygame.draw.circle(self.screen, (255, 0, 255), self.waypoints[0], 5)
@@ -487,8 +534,9 @@ class Viewer:
                     for j, wp in enumerate(self.waypoints[1:], 1):
                         old = self.waypoints[j - 1]
                         pygame.draw.line(self.screen, (128, 0, 128), old, wp, 2)
-
+                #  ----------- draw flame ----
                 self.screen.blit(Viewer.flame_images[i], (200, 200))
+                # ------ draw fixed test tower -----
                 self.screen.blit(self.tower_image, (400, 100))
                 # self.screen.blit(self.photo1, (100,350)) # works perfect
 
@@ -499,6 +547,7 @@ class Viewer:
 
                 # ---------- blit all sprites --------------
                 self.allgroup.draw(self.screen)
+                # ---- special for tanks only -----
                 # --- blit red line from each tank to his next waypoint
                 for tank in Viewer.tankgroup:
                     if tank.waypoint is not None:
@@ -524,6 +573,14 @@ class Viewer:
                 break
 
         self.window.close()
+
+class MaskSprite(pygame.sprite.Sprite):
+
+    def __init__(self, image):
+        pygame.sprite.Sprite.__init__(self, self.groups )
+        self.image = image
+        self.rect = self.image.get_rect()
+        self.mask =  pygame.mask.from_surface(self.image)
 
 
 class VectorSprite(pygame.sprite.Sprite):
@@ -623,6 +680,7 @@ class VectorSprite(pygame.sprite.Sprite):
             self.image = pygame.transform.rotate(self.image, self.correction_angle)
             self.image0 = pygame.transform.rotate(self.image0, self.correction_angle)
         self.rect = self.image.get_rect()
+        self.mask = pygame.mask.from_surface(self.image)
         self.rect.center = (int(round(self.pos[0], 0)), int(round(self.pos[1], 0)))
 
     def rotate(self, by_degree):
@@ -714,6 +772,17 @@ class VectorSprite(pygame.sprite.Sprite):
             # self.wallcheck()
         # print("rect:", self.pos.x, self.pos.y)
         self.rect.center = (int(round(self.pos.x, 0)), int(round(self.pos.y, 0)))
+
+
+class Tower(VectorSprite):
+    def __post_init__(self):
+        self.placemodus = True
+
+    def update(self, seconds):
+        if self.placemodus:
+            self.pos = pygame.mouse.get_pos()
+            self.rect.center = self.pos
+
 
 
 class Tank(VectorSprite):
