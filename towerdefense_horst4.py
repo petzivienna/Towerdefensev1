@@ -625,7 +625,7 @@ class Viewer:
                             distance = t.pos - e.pos
                             if t.towerdata.range_min < distance.length() < t.towerdata.range_max:
                                 print("we found an enemy. Fire! Fire! Fire!")
-                                BulletSprite(pos=t.pos, waypoint=e.pos)
+                                BulletSprite(pos=pygame.Vector2(t.pos.x, t.pos.y), waypoint=pygame.Vector2(e.pos.x, e.pos.y))
                                 t.ready_to_fire = t.age + t.towerdata.reload_time
                                 break
 
@@ -691,6 +691,7 @@ class VectorSprite(pygame.sprite.Sprite):
             move_direction=None,
             move_speed=0.0,
             move_speed_max=150,  # pixel/second
+            move_speed_min = 0 ,
             rotation_speed=0,
             rotation_speed_max=90,  # grad/second
             acceleration=0,
@@ -721,13 +722,13 @@ class VectorSprite(pygame.sprite.Sprite):
         for key, arg in kwargs.items():  # iterate over all **kwargs arguments
             setattr(self, key, arg)
         if pos is None:
-            self.pos = pygame.math.Vector2(200, 200)
+            self.pos = pygame.Vector2(200, 200)
         if move_direction is None:
-            self.move_direction = pygame.math.Vector2(1, 0)
-        # print("self move_directoin:", self.move_direction)
+            self.move_direction = pygame.Vector2(1, 0)
         self.time_for_next_frame = 0
-        # self._overwrite_parameters()
+        # ------------ execute __post_init__ -----------------
         self.__post_init__()
+        # ------------- assign sprite groups ---- (don't forget to code Tank.groups = allgroup, Tankgroup etc )
         pygame.sprite.Sprite.__init__(
             self, self.groups
         )  # call parent class. NEVER FORGET !
@@ -735,6 +736,7 @@ class VectorSprite(pygame.sprite.Sprite):
         # VectorSprite.book[self.number] = self
         VectorSprite.number += 1
         # self.visible = False
+        # ------------ execute create_image --------
         self.create_image()
         self.distance_traveled = 0  # in pixel
         # animation
@@ -798,9 +800,21 @@ class VectorSprite(pygame.sprite.Sprite):
 
     def rotate_with_roation_speed(self, seconds, clockwise=True, stop_angle=None):
         """rotates a sprite using its rotation_speed and changes it's look angle"""
-        angle_old = self.look_angle
-        self.rotate(self.rotation_speed * seconds * -1 if clockwise else 1)
-
+        #angle_old = self.look_angle
+        new_angle = self.look_angle + self.rotation_speed * seconds * -1 if clockwise else 1
+        new_angle = new_angle % 360
+        if new_angle > 180:
+            new_angle -= 360
+        if stop_angle is not None:
+            if clockwise:
+                if self.look_angle > stop_angle and new_angle < stop_angle:
+                    new_angle = stop_angle
+            else:
+                if self.look_angle < stop_angle and new_angle > stop_angle:
+                    new_angle = stop_angle
+        #self.rotate(self.rotation_speed * seconds * -1 if clockwise else 1)
+        self.set_angle(new_angle)
+        
     def set_angle(self, degree):
         """rotates a sprite and changes it's angle to degree"""
         self.look_angle = degree
@@ -834,7 +848,7 @@ class VectorSprite(pygame.sprite.Sprite):
                 self.image = self.animation_images[self.animation_index]
 
         # self.visible = True
-        print("move_speed,", self.move_speed, "seconds:", seconds)
+        #print("move_speed,", self.move_speed, "seconds:", seconds)
         self.distance_traveled += self.move_speed * seconds
         # ----- kill because... ------
         if self.hitpoints <= 0:
@@ -854,22 +868,18 @@ class VectorSprite(pygame.sprite.Sprite):
                 print("boss not found in allgroup error:", self.boss_number)
             else:
                 self.pos = bosslist[0].pos
-            # self.move = self.boss.move
-            # self
-        else:
-            # move independent of boss
+        else:         #----------- move independent of boss
             # acceleration
             self.move_speed += self.acceleration * seconds
-            # print(self.move_speed)
-            self.move_speed = min(self.move_speed, self.move_speed_max)
+            self.move_speed = min(self.move_speed, self.move_speed_max) # speed limit
+            self.move_speed = max(self.move_speed, self.move_speed_min) # speed limit
             if (
                     (self.waypoint is not None)
-                    and (self.move_speed > 0)
+                    and (self.move_speed != 0)
                     and (self.move_direction.length() > 0)
             ):
                 self.pos += self.move_direction.normalize() * self.move_speed * seconds
             # self.wallcheck()
-        # print("rect:", self.pos.x, self.pos.y)
         self.rect.center = (int(round(self.pos.x, 0)), int(round(self.pos.y, 0)))
 
 
@@ -900,6 +910,9 @@ class BulletSprite(VectorSprite):
         self.image_name = "bulletDark1.png"
         self.move_speed = 30.0
         self.move_speed_max = 30.0
+        self.move_speed_min = 0.0
+        self.correction_angle=-90
+        #self.waypoint = pygame.Vector2(self.waypoint.x, self.waypoint.y)
 
 
     def update(self, seconds):
