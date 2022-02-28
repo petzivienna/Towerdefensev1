@@ -99,7 +99,7 @@ Tower(name="simple",
       bullet_type="bullet",
       price = 100,
       range_min = 25,
-      range_max = 100,
+      range_max = 150,
       )
 
 Tower(name="medium",
@@ -472,6 +472,7 @@ class Viewer:
                 #my_tower = Game.towerdata[what[0]]  # the dataclass instance
                 my_data = Game.towerdata[what[0]]
                 my_tower = PlacemodusTower(image_name=my_data.sprite_name)
+                
 
                 # break
 
@@ -525,7 +526,7 @@ class Viewer:
                                 # create Tower here
                                 my_tower.kill()
                                 # create towersprite
-                                print("mydata:\n", my_data)  # this is the dataclass instance
+                                #print("mydata:\n", my_data)  # this is the dataclass instance
                                 TowerSprite(image_name = my_tower.image_name, pos=my_tower.pos, towerdata=my_data)
 
                                 #kill placeholders
@@ -585,7 +586,9 @@ class Viewer:
                             red_cross = True
                     #print(red_cross)
                     color = (random.randint(0,255),random.randint(0,255),random.randint(0,255) )
-                    pygame.draw.circle(self.screen, color, pygame.mouse.get_pos(), 50,2)
+                    #pygame.draw.circle(self.screen, color, pygame.mouse.get_pos(), 50,2)
+                    pygame.draw.circle(self.screen, (255,94,0), pygame.mouse.get_pos(), my_data.range_min,2) #minrange orange
+                    pygame.draw.circle(self.screen, (234,18,217), pygame.mouse.get_pos(), my_data.range_max,2) #maxrange purple
                     if red_cross:
                         pygame.draw.line(self.screen, (255,0,0),
                                          pygame.mouse.get_pos()+pygame.Vector2(-50,-50),
@@ -609,10 +612,17 @@ class Viewer:
                     for j, wp in enumerate(self.waypoints[1:], 1):
                         old = self.waypoints[j - 1]
                         pygame.draw.line(self.screen, (128, 0, 128), old, wp, 2)
+                #-----------------Show-Radius-mode-----------------------------        
+                if values["show_radius"]:
+                    for t in Viewer.towergroup:
+                        pygame.draw.circle(self.screen, (255,94,0), t.pos, t.towerdata.range_min,2) #minrange orange
+                        pygame.draw.circle(self.screen, (234,18,217), t.pos, t.towerdata.range_max,2) #maxrange purple      
+                        
+                
                 #  ----------- draw flame ----
                 self.screen.blit(Viewer.flame_images[i], (200, 200))
                 # ------ draw fixed test tower -----
-                self.screen.blit(self.tower_image, (400, 100))
+                #self.screen.blit(self.tower_image, (400, 100))
                 # self.screen.blit(self.photo1, (100,350)) # works perfect
 
                 # blit big tank
