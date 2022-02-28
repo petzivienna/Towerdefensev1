@@ -525,7 +525,9 @@ class Viewer:
                                 # create Tower here
                                 my_tower.kill()
                                 # create towersprite
-                                TowerSprite(image_name = my_tower.image_name, pos=my_tower.pos)
+                                print("mydata:\n", my_data)  # this is the dataclass instance
+                                TowerSprite(image_name = my_tower.image_name, pos=my_tower.pos, towerdata=my_data)
+
                                 #kill placeholders
                                 my_tower = None
                                 red_cross = False
