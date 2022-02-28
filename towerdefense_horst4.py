@@ -273,7 +273,7 @@ class Viewer:
         pygame.fastevent.init()  # use fast event instead of pygame event
         # pygame.init()
         # pygame.display.init() # already done by display.set_mode?
-
+        TowerSprite.groups = Viewer.allgroup, Viewer.towergroup
         Tank.groups = Viewer.allgroup, Viewer.tankgroup
         PlacemodusTower.groups = Viewer.allgroup, Viewer.placemodusgroup
         MaskSprite.groups = Viewer.maskgroup
@@ -524,8 +524,13 @@ class Viewer:
                                 my_tower.placemodus = False
                                 # create Tower here
                                 my_tower.kill()
+                                # create towersprite
+                                TowerSprite(image_name = my_tower.image_name, pos=my_tower.pos)
+                                #kill placeholders
                                 my_tower = None
                                 red_cross = False
+
+
 
 
                     # print("xx",e)
@@ -708,6 +713,7 @@ class VectorSprite(pygame.sprite.Sprite):
         # print("self move_directoin:", self.move_direction)
         self.time_for_next_frame = 0
         # self._overwrite_parameters()
+        self.__post_init__()
         pygame.sprite.Sprite.__init__(
             self, self.groups
         )  # call parent class. NEVER FORGET !
@@ -725,7 +731,7 @@ class VectorSprite(pygame.sprite.Sprite):
         # self.rect.center = (-300,-300) # avoid blinking image in topleft corner
         if self.look_angle != 0:
             self.set_angle(self.angle)
-        self.__post_init__()
+
 
     def __post_init__(self):
         """change parameters before create_image is called"""
@@ -864,8 +870,7 @@ class PlacemodusTower(VectorSprite):
 class TowerSprite(VectorSprite):
 
     def __post_init__(self):
-        pass
-        # create sprite from self.towerdata including barrel(s)
+        self.waypoint = None
 
 
 class Tank(VectorSprite):
