@@ -77,7 +77,7 @@ class Tower:
     bullet_type: str = None  # bullet, rocket, laser, ice etc.
     sprite_size: int = None  # pixel width == height of sprite in pixel, will be transformed to this width
     barrels: int = 1  # how many barrels
-    damage: int = 100
+    damage: int = 1
     splash_radius = 1  # pixel
     range_min: int = 25
     range_max: int = 150
@@ -145,6 +145,7 @@ class Viewer:
     cursorgroup = pygame.sprite.GroupSingle()
     maskgroup = pygame.sprite.GroupSingle()
     placemodusgroup = pygame.sprite.GroupSingle()
+    bargroup = pygame.sprite.Group() # will be updated AFTER allgroup
     images = {}
     # -------- gui --------
     layout = [
@@ -284,6 +285,7 @@ class Viewer:
         PlacemodusTower.groups = Viewer.allgroup, Viewer.placemodusgroup
         MaskSprite.groups = Viewer.maskgroup
         BulletSprite.groups = Viewer.allgroup, Viewer.bulletgroup
+        HealthBarSprite.groups = Viewer.bargroup # NOT allgroup! TODO: check if there is wiggling hp-bar problem if bar is in allgroup
 
         self.load_resources()
         # ----- sprite groups ----
@@ -617,20 +619,45 @@ class Viewer:
                 # self.screen.blit(Viewer.images["tankBody_blue.png"][0] , (400,300))
                 # --------- update all sprites ----------------
                 self.allgroup.update(seconds)
+                self.bargroup.update(seconds)
                 # ---------- turret shooting at tanks, new bullet ? -------------
                 for t in Viewer.towergroup:
                     if t.age > t.ready_to_fire:
                         # --- is any tank between range_min and range_max ?
-                        for e in Viewer.tankgroup: # e for enemy
-                            distance = t.pos - e.pos
+                        for enemy in Viewer.tankgroup: # e for enemy
+                            distance = t.pos - enemy.pos
                             if t.towerdata.range_min < distance.length() < t.towerdata.range_max:
-                                print("we found an enemy. Fire! Fire! Fire!")
-                                BulletSprite(pos=pygame.Vector2(t.pos.x, t.pos.y), waypoint=pygame.Vector2(e.pos.x, e.pos.y))
-                                t.ready_to_fire = t.age + t.towerdata.reload_time
+                                t.fire(enemy)
                                 break
+                # ===========================================================
+                # ----------- collision detection ---------------------------
+                # ===========================================================
+                # ----- Bullet vs. Tank
+                for enemy in Viewer.tankgroup:
+                    crashgroup = pygame.sprite.spritecollide(
+                        sprite=enemy, 
+                        group=Viewer.bulletgroup,
+                        dokill=False, # TODO: fix
+                        collided=pygame.sprite.collide_rect_ratio(0.7)
+                        )
+                    for bullet in crashgroup:
+                        print("hitpoints before", enemy.hitpoints)
+                        enemy.hitpoints -= bullet.damage
+                        print("hitpoints after", enemy.hitpoints)
+                        bullet.kill()
+                # ----- kill tanks
+                #kaputt = [e.number for e in Viewer.tankgroup if e.hitpoints <= 0]
+                ## TODO: create verctorsprite dict with number as key 
+                #Viewer.tank
+                #for kaputt_number in kaputt:
+                #    if enemy.hitpoints <= 0:
+                #        enemy.kill()
+                #        continue
+
 
                 # ---------- blit all sprites --------------
                 self.allgroup.draw(self.screen)
+                self.bargroup.draw(self.screen)
                 # ---- special for tanks only -----
                 # --- blit red line from each tank to his next waypoint
                 for tank in Viewer.tankgroup:
@@ -640,7 +667,7 @@ class Viewer:
                             self.screen, (255, 0, 0), tank.pos, tank.waypoint, 1
                         )
 
-                ## doenst not work: print(pygame.mouse.get_pos())
+                # ----------- blit screen -------------------------
                 pygame.display.update()  # need to be called each loop
                 # pygame.display.flip()
 
@@ -652,7 +679,7 @@ class Viewer:
                     i += 1
                     if i == len(Viewer.flame_images):
                         i = 0
-
+            # ================== end of pygame (=TIMEOUT) event =============
             if event == sg.WINDOW_CLOSED:
                 break
 
@@ -696,11 +723,12 @@ class VectorSprite(pygame.sprite.Sprite):
             rotation_speed_max=90,  # grad/second
             acceleration=0,
             boss_number=None,
+            boss_delta = None, # Vector2, relative to boss.pos 
             _layer=0,
             look_angle=0,  # degrees
             radius=0,
             hitpoints=100,
-            hitpointsfull=100,
+            hitpoints_full=100,
             age=0,
             max_age=None,
             max_distance=None,
@@ -726,8 +754,7 @@ class VectorSprite(pygame.sprite.Sprite):
         if move_direction is None:
             self.move_direction = pygame.Vector2(1, 0)
         self.time_for_next_frame = 0
-        # ------------ execute __post_init__ -----------------
-        self.__post_init__()
+
         # ------------- assign sprite groups ---- (don't forget to code Tank.groups = allgroup, Tankgroup etc )
         pygame.sprite.Sprite.__init__(
             self, self.groups
@@ -736,8 +763,12 @@ class VectorSprite(pygame.sprite.Sprite):
         # VectorSprite.book[self.number] = self
         VectorSprite.number += 1
         # self.visible = False
+        
+        
         # ------------ execute create_image --------
         self.create_image()
+        # ------------ execute __post_init__ -----------------
+        self.__post_init__()
         self.distance_traveled = 0  # in pixel
         # animation
         if self.time_for_each_frame is not None:
@@ -756,7 +787,8 @@ class VectorSprite(pygame.sprite.Sprite):
         # check if this is a boss and kill all his underlings as well
         # a sprite is a boss if any other sprite has this sprite number as boss number
         # kill also delete a sprite in all spritegroups
-        tokill = [s for s in Viewer.allgroup if "boss" in s.__dict__ and s.boss == self]
+        #tokill = [s for s in Viewer.allgroup if "boss" in s.__dict__ and s.boss == self]
+        tokill = [s for s in Viewer.bargroup if s.boss == self]
         for s in tokill:
             s.kill()
         # if self.number in self.numbers:
@@ -859,15 +891,17 @@ class VectorSprite(pygame.sprite.Sprite):
             self.kill()
         # ---- movement with/without boss ----
         if self.boss_number and self.move_with_boss:
-            bosslist = [
-                sprite
-                for sprite in Viewer.allgroup
-                if sprite.number == self.boss_number
-            ]
-            if len(bosslist) < 1:
-                print("boss not found in allgroup error:", self.boss_number)
-            else:
-                self.pos = bosslist[0].pos
+        #    bosslist = [
+        #        sprite
+        #        for sprite in Viewer.allgroup
+         #       if sprite.number == self.boss_number
+        #    ]
+        #    if len(bosslist) < 1:
+        #        print("boss not found in allgroup error:", self.boss_number)
+        #    else:
+        #        boss = bosslist[0]
+        # assert that self.boss exist if self.boss_number exist      
+                self.pos = self.boss.pos + self.boss_delta 
         else:         #----------- move independent of boss
             # acceleration
             self.move_speed += self.acceleration * seconds
@@ -894,11 +928,53 @@ class PlacemodusTower(VectorSprite):
             self.rect.center = self.pos
 
 
+
+
 class TowerSprite(VectorSprite):
+    # in attribute .towerdata is the instance of the Tower Dataclass
 
     def __post_init__(self):
         self.waypoint = None
         self.ready_to_fire = 0 # age when tower will be ready to fire.
+
+    def fire(self, enemy):
+        BulletSprite(image_name=self.towerdata.bullet_name,
+                     correction_angle=-90,
+                     pos=pygame.Vector2(self.pos.x, self.pos.y),
+                     waypoint=pygame.Vector2(enemy.pos.x, enemy.pos.y),
+                     damage=self.towerdata.damage)                                
+        self.ready_to_fire = self.age + self.towerdata.reload_time
+
+
+class HealthBarSprite(VectorSprite):
+
+    def __post_init__(self):
+        try:
+            self.boss = [s for s in Viewer.allgroup if s.number == self.boss_number][0]
+        except IndexError as e:
+            raise("boss Sprite not found error", e)
+        self.old_hp = self.boss.hitpoints
+
+    def update(self, seconds):
+        if self.boss.hitpoints != self.old_hp:
+            self.create_image() 
+        self.rect.center = self.boss.pos + self.boss_delta
+
+    def create_image(self):
+        width = self.boss.image0.get_rect().width // 2
+        height = 10
+        percent = self.boss.hitpoints / self.boss.hitpoints_full
+        self.image = pygame.Surface((width, height))
+        pygame.draw.rect(self.image, (0,128,0), (0,0,width, height), 1) # outer border
+        pygame.draw.rect(self.image, (0,255,0), (1,1,int(width * percent)-2, height-2 ))
+        self.image.set_colorkey((0,0,0)) # black is transparent
+        self.image.convert_alpha()
+        self.rect = self.image.get_rect()
+        boss_w, boss_h = self.boss.image.get_rect().width, self.boss.image.get_rect().height 
+        self.boss_delta = pygame.Vector2( 0, -int(boss_h/2) - 20)
+
+
+        
 
 
 
@@ -907,11 +983,11 @@ class BulletSprite(VectorSprite):
 
     def __post_init__(self):
         """bullet flying from pos to waypoint"""
-        self.image_name = "bulletDark1.png"
+        #self.image_name = "bulletDark1.png"
         self.move_speed = 30.0
         self.move_speed_max = 30.0
         self.move_speed_min = 0.0
-        self.correction_angle=-90
+        #self.correction_angle=-90
         #self.waypoint = pygame.Vector2(self.waypoint.x, self.waypoint.y)
 
 
@@ -927,10 +1003,15 @@ class Tank(VectorSprite):
     near_enough = 10  # pixel
 
     def __post_init__(self):
-        print("tank post init")
+        #print("tank post init")
         self.waypoints = []
         self.waypoint = None
         self.i = 0
+        HealthBarSprite(boss_number=self.number, boss=self)
+        # for collision_detection
+        #w,h = self.rect.size()
+        #self.radius = min(w,h)/2
+
 
     def update(self, seconds):
         self.get_next_waypoint()
@@ -948,13 +1029,8 @@ class Tank(VectorSprite):
                 self.i = 0
             self.waypoint = self.waypoints[self.i]
 
-
-# def motion(window):
-#    #x, y = event.x, event.y
-#    #print('{}, {}'.format(x, y))
-#    #print(f'X, Y = {window.user_bind_event.x, window.user_bind_event.y}')
-#    return f'X, Y = {window.user_bind_event.x, window.user_bind_event.y}'
-
+# TODO: method to cancel tower placement / get "normal" mousepointer back (after interacting with tkinter while tower placement is active)
+# TODO: fix chrash when just clicking "buy" without selecting tower first
 
 if __name__ == "__main__":
     mygame = Viewer()
