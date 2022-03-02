@@ -88,7 +88,7 @@ class Tower:
     bullet_speed: float = 100  # pixcel / second
     bullet_error: float = 1.0  # degrees
     salvo: int = 1  # how many bullets per salvo per barrel
-    salvo_delay: float = 0.1  # time between bullets of a salvo from the same barrel
+    salvo_delay: float = 0.25  # time between bullets of a salvo from the same barrel
     price: int = 100
     upgrade_name: str = None  # can be upgraded to this name
     upgrade_time: float = 5.0  # seconds to upgrade
@@ -96,7 +96,9 @@ class Tower:
 
     def __post_init__(self):
         Game.towerdata[self.name] = self
+    
 
+    
 
 # --------- define Tower types ------------
 Tower(name="simple",
@@ -107,6 +109,7 @@ Tower(name="simple",
       price=100,
       range_min=25,
       range_max=150,
+      salvo=4
       )
 
 Tower(name="medium",
@@ -553,7 +556,8 @@ class Viewer:
                                 my_tower.kill()
                                 # create towersprite
                                 # print("mydata:\n", my_data)  # this is the dataclass instance
-                                TowerSprite(image_name=my_tower.image_name,
+                                TowerSprite(#image_name=my_tower.image_name,
+                                            #image=my_tower.image,
                                             pos=my_tower.pos, towerdata=my_data)
 
                                 # kill placeholders
@@ -586,7 +590,7 @@ class Viewer:
                     self.screen.fill((255, 255, 255))  # fill screen white
                 else:
                     self.screen.blit(Viewer.backgroundimage, (0, 0))
-                # mousepointer is circle ?
+                # -------- edit mousepointer when in place-tower-mode -----------------
                 if my_tower is not None:
                     if bigmask:
                         # if Viewer.maskgroup(): # any strite at all inside maskgropu?
@@ -596,10 +600,8 @@ class Viewer:
                             red_cross = False
                         else:
                             red_cross = True
-                    # print(red_cross)
                     color = (random.randint(0, 255), random.randint(
                         0, 255), random.randint(0, 255))
-                    # pygame.draw.circle(self.screen, color, pygame.mouse.get_pos(), 50,2)
                     pygame.draw.circle(self.screen, (255, 94, 0), pygame.mouse.get_pos(), my_data.range_min,
                                        2)  # minrange orange
                     pygame.draw.circle(self.screen, (234, 18, 217), pygame.mouse.get_pos(), my_data.range_max,
@@ -613,8 +615,7 @@ class Viewer:
                                          pygame.mouse.get_pos() + pygame.Vector2(-50, 50),
                                          pygame.mouse.get_pos() + pygame.Vector2(50, -50),
                                          4)
-
-                # ----- draw waypoint circles and lines ------
+                # ----- draw pink waypoint dots and lines ------
                 if len(self.waypoints) == 1:
                     pygame.draw.circle(
                         self.screen, (255, 0, 255), self.waypoints[0], 5)
@@ -632,28 +633,25 @@ class Viewer:
                                            2)  # minrange orange
                         pygame.draw.circle(self.screen, (234, 18, 217), t.pos, t.towerdata.range_max,
                                            2)  # maxrange purple
-
-                #  ----------- draw flame ----
+                #  ----------- draw flame animation ----
                 self.screen.blit(Viewer.flame_images[i], (200, 200))
-                # ------ draw fixed test tower -----
-                # self.screen.blit(self.tower_image, (400, 100))
-                # self.screen.blit(self.photo1, (100,350)) # works perfect
-
-                # blit big tank
-                # self.screen.blit(Viewer.images["tankBody_blue.png"][0] , (400,300))
                 # --------- update all sprites ----------------
                 self.allgroup.update(seconds)
                 self.bargroup.update(seconds)
                 self.fxgroup.update(seconds)
-                # ---------- turret shooting at tanks, new bullet ? -------------
-                for t in Viewer.towergroup:
-                    if t.age > t.ready_to_fire:
-                        # --- is any tank between range_min and range_max ?
+                # ---------- turret shooting at tanks -------------
+                if len(Viewer.tankgroup) > 0:
+                    for t in Viewer.towergroup:
+                        # ---- aim at closest enemy ----
+                        best_distance, closest_enemy = None, None
                         for enemy in Viewer.tankgroup:  # e for enemy
                             distance = t.pos - enemy.pos
-                            if t.towerdata.range_min < distance.length() < t.towerdata.range_max:
-                                t.fire(enemy)
-                                break
+                            if (best_distance is None) or (distance < best_distance):
+                                best_distance = distance
+                                closest_enemy = enemy
+                        t.rotate_towards(seconds, closest_enemy)
+
+                       
                 # ===========================================================
                 # ----------- collision detection ---------------------------
                 # ===========================================================
@@ -672,14 +670,6 @@ class Viewer:
                         for _ in range(8):
                             Spark(pos=pygame.Vector2(bullet.pos.x, bullet.pos.y))
                         bullet.kill()
-                # ----- kill tanks
-                #kaputt = [e.number for e in Viewer.tankgroup if e.hitpoints <= 0]
-                # TODO: create verctorsprite dict with number as key
-                # Viewer.tank
-                # for kaputt_number in kaputt:
-                #    if enemy.hitpoints <= 0:
-                #        enemy.kill()
-                #        continue
 
                 # ---------- blit all sprites --------------
                 self.allgroup.draw(self.screen)
@@ -805,7 +795,7 @@ class VectorSprite(pygame.sprite.Sprite):
             self.time_for_next_frame = None
         # self.rect.center = (-300,-300) # avoid blinking image in topleft corner
         if self.look_angle != 0:
-            self.set_angle(self.angle)
+            self.set_angle(self.look_angle)
 
     def __post_init__(self):
         """change parameters before create_image is called"""
@@ -970,13 +960,55 @@ class TowerSprite(VectorSprite):
     def __post_init__(self):
         self.waypoint = None
         self.ready_to_fire = 0  # age when tower will be ready to fire.
+        self.rotation_speed = self.towerdata.rotation_speed
+        self.compose_image()
+
+    def compose_image(self):
+        """merge tower and barrel image(s)"""
+        self.image = Viewer.images[self.towerdata.sprite_name][1].copy()
+        self.image.blit(Viewer.images[self.towerdata.barrel_name][1], (0,0))
+        self.image = pygame.transform.rotozoom(self.image, 90, 1.0)
+        self.image0 = self.image.copy()
+        self.rect = self.image.get_rect()
+        self.rect.center = self.pos
+
+
+    def rotate_towards(self, seconds, enemy):
+        # rotate clockwise or counteclockwise?
+        tower2enemy = enemy.pos - self.pos 
+        angle = tower2enemy.angle_to(pygame.Vector2(1,0))
+        print("angle", angle, enemy.pos, self.pos)
+        self.set_angle(-angle)
+        # clockwise or counterclockwise? 
+        
+        #diffvector = pygame.Vector2(1,0)
+        #diffvector.rotate_ip(angle)
+        #diff = diffvector.angle_to(pygame.Vector2(1,0))
+        #self.rotate_with_roation_speed(seconds, True if diff>0 else False, stop_angle=angle)
+        # fire whole salvo:
+        distance = self.pos - enemy.pos
+        if self.towerdata.range_min < distance.length() < self.towerdata.range_max:
+            if self.ready_to_fire < self.age:
+                self.fire(enemy) # salvo!
+
 
     def fire(self, enemy):
-        BulletSprite(image_name=self.towerdata.bullet_name,
+        if self.towerdata.bullet_type == "bullet":
+            start_time = 0
+            for b in range(self.towerdata.salvo):
+                start_time =  b*self.towerdata.salvo_delay
+                BulletSprite(image_name=self.towerdata.bullet_name,
                      correction_angle=-90,
                      pos=pygame.Vector2(self.pos.x, self.pos.y),
-                     waypoint=pygame.Vector2(enemy.pos.x, enemy.pos.y),
-                     damage=self.towerdata.damage)
+                     #waypoint=pygame.Vector2(enemy.pos.x, enemy.pos.y),
+                     turret = self,
+                     damage=self.towerdata.damage,
+                     speed=self.towerdata.bullet_speed,
+                     error=self.towerdata.bullet_error,
+                     age=-start_time,
+                     max_distance = self.towerdata.range_max)
+                
+
         self.ready_to_fire = self.age + self.towerdata.reload_time
 
 
@@ -1029,8 +1061,8 @@ class Spark(VectorSprite):
         self.create_image2()
     
     def create_image2(self):
-        self.image = pygame.Surface((10,10))
-        pygame.draw.line(self.image, self.color, (0,3), (5,3),1)
+        self.image = pygame.Surface((12,12))
+        pygame.draw.line(self.image, self.color, (1,3), (5,3),1)
         pygame.draw.line(self.image, self.color, (5,3), (10,3),2)
         self.image = pygame.transform.rotozoom(self.image,-self.angle, self.zoom)
         self.image.set_colorkey((0,0,0)) # black is transparent
@@ -1044,25 +1076,59 @@ class Spark(VectorSprite):
 
 
 class BulletSprite(VectorSprite):
-    near_enough = 5  # pixel
+    """A bullet flys in a straith line until max_distance is reached"""
 
     def __post_init__(self):
         """bullet flying from pos to waypoint"""
         #self.image_name = "bulletDark1.png"
-        self.move_speed = 30.0
-        self.move_speed_max = 30.0
-        self.move_speed_min = 0.0
+        self.move_speed = self.speed
+        #self.move_speed_max = self.speed
+        #self.move_speed_min = self.speed
         # self.correction_angle=-90
         #self.waypoint = pygame.Vector2(self.waypoint.x, self.waypoint.y)
+        #self.max_distance = self.range_max
+        self.move_direction = pygame.Vector2(1,0)
+        self.aim()
+        
+    def aim(self):
+        self.move_direction = pygame.Vector2(1,0) # must be reset!!
+        self.move_direction.rotate_ip(self.turret.look_angle)
+        self.set_angle(self.turret.look_angle)
+        #self.move_direction = self.waypoint - self.pos
+        #self.move_direction.rotate_ip(random.uniform(-self.error,self.error))
+        #self.angle = -self.move_direction.angle_to(pygame.Vector2(1,0))
+        #flipped = pygame.Vector2(self.move_direction.x, -self.move_direction.y)
+        #self.set_angle(flipped.angle_to(pygame.Vector2(1, 0)))
 
     def update(self, seconds):
-        self.move_direction = self.waypoint - self.pos
-        flipped = pygame.Vector2(self.move_direction.x, -self.move_direction.y)
-        self.set_angle(flipped.angle_to(pygame.Vector2(1, 0)))
-        if self.move_direction.length() < BulletSprite.near_enough:
+        """calculate movement, position and bouncing on edge"""
+        self.old_age = self.age
+        self.age += seconds
+        # do nothing if negative age ( sprite will appear in the future, not yet)
+        if self.age < 0:
+            return
+        elif self.old_age <0 and self.age >= 0:
+            self.aim()
+       
+        self.distance_traveled += self.move_speed * seconds
+        # ----- kill because... ------
+       
+        if self.max_distance is not None and self.distance_traveled > self.max_distance:
             self.kill()
-        super().update(seconds)
+        # ----------- move independent of boss
+        # acceleration
+        #self.move_speed += self.acceleration * seconds
+        #self.move_speed = min(
+        #    self.move_speed, self.move_speed_max)  # speed limit
+        #self.move_speed = max(
+        #    self.move_speed, self.move_speed_min)  # speed limit
+        self.pos += self.move_direction.normalize() * self.move_speed * seconds
+        self.rect.center = (int(round(self.pos.x, 0)),
+                            int(round(self.pos.y, 0)))
 
+
+
+        
 
 class Tank(VectorSprite):
     near_enough = 10  # pixel
