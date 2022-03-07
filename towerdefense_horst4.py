@@ -122,6 +122,31 @@ Tower(name="medium",
       range_max=200,
       )
 
+Tower(name="laser",
+      sprite_name="barrelBlack_top.png",
+      barrel_name="tankDark_barrel2.png",
+      bullet_type="laser",
+      damage = 0.01, # hiptoins per second
+      price=400,
+      range_min=40,
+      range_max=250,
+      )
+
+Tower(name="rocket",
+      sprite_name="barrelRust_top.png",
+      barrel_name="specialBarrel5.png",
+      bullet_name="bulletDark2_outline.png",
+      bullet_type="rocket",
+      price=500,
+      range_min=100,
+      range_max=200,
+      salvo=5,
+      salvo_delay = 0.045,
+      reload_time=2.5,
+      damage=1,
+      bullet_speed = 26,
+      bullet_error = 30,
+     )
 
 # print("towerdata:", Game.towerdata)
 
@@ -294,6 +319,7 @@ class Viewer:
         PlacemodusTower.groups = Viewer.allgroup, Viewer.placemodusgroup
         MaskSprite.groups = Viewer.maskgroup
         BulletSprite.groups = Viewer.allgroup, Viewer.bulletgroup
+        RocketSprite.groups = Viewer.allgroup, Viewer.bulletgroup
         # NOT allgroup! TODO: check if there is wiggling hp-bar problem if bar is in allgroup
         HealthBarSprite.groups = Viewer.bargroup
         Spark.groups = Viewer.fxgroup
@@ -600,8 +626,8 @@ class Viewer:
                             red_cross = False
                         else:
                             red_cross = True
-                    color = (random.randint(0, 255), random.randint(
-                        0, 255), random.randint(0, 255))
+                    #color = (random.randint(0, 255), random.randint(
+                    #    0, 255), random.randint(0, 255))
                     pygame.draw.circle(self.screen, (255, 94, 0), pygame.mouse.get_pos(), my_data.range_min,
                                        2)  # minrange orange
                     pygame.draw.circle(self.screen, (234, 18, 217), pygame.mouse.get_pos(), my_data.range_max,
@@ -639,17 +665,7 @@ class Viewer:
                 self.allgroup.update(seconds)
                 self.bargroup.update(seconds)
                 self.fxgroup.update(seconds)
-                # ---------- turret shooting at tanks -------------
-                if len(Viewer.tankgroup) > 0:
-                    for t in Viewer.towergroup:
-                        # ---- aim at closest enemy ----
-                        best_distance, closest_enemy = None, None
-                        for enemy in Viewer.tankgroup:  # e for enemy
-                            distance = t.pos - enemy.pos
-                            if (best_distance is None) or (distance < best_distance):
-                                best_distance = distance
-                                closest_enemy = enemy
-                        t.rotate_towards(seconds, closest_enemy)
+               
 
                        
                 # ===========================================================
@@ -664,9 +680,9 @@ class Viewer:
                         collided=pygame.sprite.collide_rect_ratio(0.7)
                     )
                     for bullet in crashgroup:
-                        print("hitpoints before", enemy.hitpoints)
+                        #print("hitpoints before", enemy.hitpoints)
                         enemy.hitpoints -= bullet.damage
-                        print("hitpoints after", enemy.hitpoints)
+                        #print("hitpoints after", enemy.hitpoints)
                         for _ in range(8):
                             Spark(pos=pygame.Vector2(bullet.pos.x, bullet.pos.y))
                         bullet.kill()
@@ -684,6 +700,31 @@ class Viewer:
                             self.screen, (255, 0,
                                           0), tank.pos, tank.waypoint, 1
                         )
+
+                # ---------- turret shooting at tanks -------------
+                if len(Viewer.tankgroup) > 0:
+                    for t in Viewer.towergroup:
+                        # ---- aim at closest enemy ----
+                        best_distance, closest_enemy = None, None
+                        for enemy in Viewer.tankgroup:  # e for enemy
+                            distance = t.pos - enemy.pos
+                            if (best_distance is None) or (distance < best_distance):
+                                best_distance = distance
+                                closest_enemy = enemy
+                        t.rotate_towards(seconds, closest_enemy)
+                        # bullet turrets fire automatically
+                        # --- fire laser turret ? 
+                        if t.towerdata.bullet_type == "laser":
+                            if t.towerdata.range_min < best_distance.length() < t.towerdata.range_max:
+                                red = (random.randint(222,255),0,0)
+                                width = random.randint(1,3)
+                                pygame.draw.line(self.screen, red, t.pos, closest_enemy.pos, width)
+                                if random.random() < 0.2:
+                                    Spark(pos=pygame.Vector2(closest_enemy.pos.x, closest_enemy.pos.y))
+                                closest_enemy.hitpoints -= t.towerdata.damage
+
+                            
+
 
                 # ----------- blit screen -------------------------
                 pygame.display.update()  # need to be called each loop
@@ -819,7 +860,9 @@ class VectorSprite(pygame.sprite.Sprite):
         # consisting of normal_sized image ("half") and double_sized image ( for higher quality)
         # i assume the Viewer.images are already convert_alpha() processed
         # ---- if image_name is given:
-        if (self.image is None) and (self.image_name is not None):
+        if self.image is None:
+            if self.image_name is None:
+                return
             self.image = Viewer.images[self.image_name][0].copy()
             self.image0 = Viewer.images[self.image_name][
                 1].copy()  # for rotation in better quality, use the bigger image
@@ -831,11 +874,11 @@ class VectorSprite(pygame.sprite.Sprite):
                 self.image, self.correction_angle)
             self.image0 = pygame.transform.rotate(
                 self.image0, self.correction_angle)
-        if self.image is not None:
-            self.rect = self.image.get_rect()
-            self.mask = pygame.mask.from_surface(self.image)
-            self.rect.center = (
-                int(round(self.pos[0], 0)), int(round(self.pos[1], 0)))
+        #if self.image is not None:
+        self.rect = self.image.get_rect()
+        self.mask = pygame.mask.from_surface(self.image)
+        self.rect.center = (
+            int(round(self.pos[0], 0)), int(round(self.pos[1], 0)))
 
     def rotate(self, by_degree):
         """rotates a sprite and changes it's look angle by by_degree"""
@@ -977,8 +1020,9 @@ class TowerSprite(VectorSprite):
         # rotate clockwise or counteclockwise?
         tower2enemy = enemy.pos - self.pos 
         angle = tower2enemy.angle_to(pygame.Vector2(1,0))
-        print("angle", angle, enemy.pos, self.pos)
+        #print("angle", angle, enemy.pos, self.pos)
         self.set_angle(-angle)
+        self.enemy = enemy
         # clockwise or counterclockwise? 
         
         #diffvector = pygame.Vector2(1,0)
@@ -989,25 +1033,46 @@ class TowerSprite(VectorSprite):
         distance = self.pos - enemy.pos
         if self.towerdata.range_min < distance.length() < self.towerdata.range_max:
             if self.ready_to_fire < self.age:
-                self.fire(enemy) # salvo!
+                self.fire() # salvo!
 
 
-    def fire(self, enemy):
+    def fire(self):
         if self.towerdata.bullet_type == "bullet":
             start_time = 0
             for b in range(self.towerdata.salvo):
                 start_time =  b*self.towerdata.salvo_delay
-                BulletSprite(image_name=self.towerdata.bullet_name,
-                     correction_angle=-90,
-                     pos=pygame.Vector2(self.pos.x, self.pos.y),
-                     #waypoint=pygame.Vector2(enemy.pos.x, enemy.pos.y),
-                     turret = self,
-                     damage=self.towerdata.damage,
-                     speed=self.towerdata.bullet_speed,
-                     error=self.towerdata.bullet_error,
-                     age=-start_time,
-                     max_distance = self.towerdata.range_max)
-                
+                BulletSprite(turret = self, age= -start_time)
+                #BulletSprite(image_name=self.towerdata.bullet_name,
+                #     correction_angle=-90,
+                #     pos=pygame.Vector2(self.pos.x, self.pos.y),
+                #     #waypoint=pygame.Vector2(enemy.pos.x, enemy.pos.y),
+                #     turret = self,
+                #     damage=self.towerdata.damage,
+                #     speed=self.towerdata.bullet_speed,
+                #     error=self.towerdata.bullet_error,
+                #     age=-start_time,
+                #     max_distance = self.towerdata.range_max)
+        
+        elif self.towerdata.bullet_type == "laser":
+            pass # laser drawing and damage is handled in Viewer.run (Timeout event)
+
+        elif self.towerdata.bullet_type == "rocket":
+            start_time = 0
+            for b in range(self.towerdata.salvo):
+                start_time =  b*self.towerdata.salvo_delay
+                RocketSprite(turret=self, age=-start_time, enemy=self.enemy)
+                #RocketSprite(image_name=self.towerdata.bullet_name,
+                #     correction_angle=-90,
+                #     pos=pygame.Vector2(self.pos.x, self.pos.y),
+                #     #waypoint=pygame.Vector2(enemy.pos.x, enemy.pos.y),
+                #     turret = self,
+                #     damage=self.towerdata.damage,
+                #     speed=self.towerdata.bullet_speed,
+                #     error=self.towerdata.bullet_error,
+                #     age=-start_time,
+                #     max_distance = self.towerdata.range_max,
+                #     enemy=self.enemy)
+
 
         self.ready_to_fire = self.age + self.towerdata.reload_time
 
@@ -1047,13 +1112,14 @@ class HealthBarSprite(VectorSprite):
 class Spark(VectorSprite):
 
     def __post_init__(self):
+        # TODO: fine tune spark parameters
         c = random.randint(200,255)
         self.color = (c,c,0) # yellow?
-        self.move_speed = random.uniform(120,160)
+        self.move_speed = random.uniform(20,50)
         self.move_speed_max = 160
-
-        self.max_age = random.uniform(0.9,2.5)
-        self.acceleration = -20
+        self.max_age = random.uniform(0.2,0.5)
+        self.max_distance = random.uniform(30,50)
+        self.acceleration = 20
         self.move_direction = pygame.Vector2(1,0)
         self.angle = random.randint(0,360)
         self.move_direction.rotate_ip(self.angle)
@@ -1061,9 +1127,9 @@ class Spark(VectorSprite):
         self.create_image2()
     
     def create_image2(self):
-        self.image = pygame.Surface((12,12))
-        pygame.draw.line(self.image, self.color, (1,3), (5,3),1)
-        pygame.draw.line(self.image, self.color, (5,3), (10,3),2)
+        self.image = pygame.Surface((24,12))
+        pygame.draw.line(self.image, self.color, (13,3), (17,3),1)
+        pygame.draw.line(self.image, self.color, (17,3), (22,3),2)
         self.image = pygame.transform.rotozoom(self.image,-self.angle, self.zoom)
         self.image.set_colorkey((0,0,0)) # black is transparent
         self.image.convert_alpha()
@@ -1073,6 +1139,110 @@ class Spark(VectorSprite):
                 int(round(self.pos.x, 0)), int(round(self.pos.y, 0)))
 
 
+class RocketSprite(VectorSprite):
+    """A self-guiding rocket, flying in a curvy path, tracking a tank"""
+    
+
+    def __post_init__(self):
+        self.correction_angle = -90
+        self.pos = pygame.Vector2(self.turret.pos.x, self.turret.pos.y)
+        self.damage = self.turret.towerdata.damage
+        self.move_speed = self.turret.towerdata.bullet_speed
+        self.max_distance = self.turret.towerdata.range_max
+        self.image_name = self.turret.towerdata.bullet_name
+        self.max_age = 25
+        self.create_image()
+        #self.enemy = None
+        self.move = None
+        self.speed_max = 200
+        self.rotation_speed = 90 # grad/seconds
+        # ---
+        self.move_direction = pygame.Vector2(1,0)
+        self.aim_with_error()
+        
+    def aim_with_error(self):
+        error = random.uniform(-self.turret.towerdata.bullet_error,self.turret.towerdata.bullet_error)
+        self.move_direction = pygame.Vector2(1,0) # must be reset!!
+        self.move_direction.rotate_ip(self.turret.look_angle + error)
+        self.set_angle(self.turret.look_angle + error)
+        self.move = self.move_direction
+        
+    def aim_at_enemy(self,seconds):
+        #if self.enemy is not None:
+        dist = self.enemy.pos - self.pos
+        self.e_angle = dist.angle_to(pygame.math.Vector2(1,0))
+        
+        ##self.set_angle(-self.e_angle)
+        ##self.move = pygame.Vector2(dist.x, dist.y)
+        # -- slow turn?
+        ##self.move = pygame.Vector2(1,0)
+        if self.look_angle == self.e_angle:
+            return
+        elif self.look_angle < self.e_angle:
+            clockwise = True
+        else: 
+            clockwise = False
+        self.move.rotate_ip(-self.rotation_speed * seconds * clockwise)
+        self.set_angle(-self.move.angle_to(pygame.Vector2(1,0)))
+        
+    
+    def update(self, seconds):
+        """calculate movement, position and re-aming"""
+        self.old_age = self.age
+        self.age += seconds
+        # do nothing if negative age ( sprite will appear in the future, not yet)
+        if self.age < 0:
+            self.visible = False
+            return
+        elif self.old_age <0 and self.age >= 0:
+            self.aim_with_error()
+            self.visible = True
+       
+        #self.distance_traveled += self.move_speed * seconds
+        # ----- kill because... ------
+       
+        #if self.max_distance is not None and self.distance_traveled > self.max_distance:
+        #    self.kill()
+        if self.age > self.max_age:
+            self.kill()
+
+        #print("enemy:", self.enemy)
+        # update aiming  (if enemy exist)
+        # do NOT aim in the first second
+        if self.age > 1.0:
+            self.aim_at_enemy(seconds) # create self.move
+            #self.set_angle()
+            # self.e_angle is now set towards enemy
+            #self.move = pygame.math.Vector2(1,0)
+            
+            #if self.e_angle < self.look_angle:
+            #    self.rotate_with_roation_speed(seconds, False, self.e_angle)
+            #elif self.e_angle > self.look_angle:
+            #    self.rotate_with_roation_speed(seconds, True, self.e_angle)
+            #self.set_angle(self.look_angle)
+            #self.move.rotate_ip(self.look_angle)
+
+
+            
+        # first move ? 
+        #if self.move is None:
+        #    self.pos += self.move_direction.normalize() * self.move_speed * seconds
+        #else:
+        #    print("updating aim...")
+            #self.move = self.move_direction.normalize() * self.move_speed * seconds
+        #self.move_direction = self.move_direction * 0.9 * self.move_speed * seconds +  self.move * self.move_speed * seconds           
+        self.move_direction = self.move.normalize() * self.move_speed * seconds
+        self.pos += self.move_direction 
+        # acceleration
+        #self.move_speed += self.acceleration * seconds
+        #self.move_speed = min(
+        #    self.move_speed, self.move_speed_max)  # speed limit
+        #self.move_speed = max(
+        #    self.move_speed, self.move_speed_min)  # speed limit
+        #self.pos += self.move_direction.normalize() * self.move_speed * seconds
+        
+        self.rect.center = (int(round(self.pos.x, 0)),
+                            int(round(self.pos.y, 0)))
 
 
 class BulletSprite(VectorSprite):
@@ -1081,12 +1251,21 @@ class BulletSprite(VectorSprite):
     def __post_init__(self):
         """bullet flying from pos to waypoint"""
         #self.image_name = "bulletDark1.png"
-        self.move_speed = self.speed
+        ##self.move_speed = self.speed
         #self.move_speed_max = self.speed
         #self.move_speed_min = self.speed
         # self.correction_angle=-90
         #self.waypoint = pygame.Vector2(self.waypoint.x, self.waypoint.y)
         #self.max_distance = self.range_max
+        # ---
+        self.correction_angle = -90
+        self.pos = pygame.Vector2(self.turret.pos.x, self.turret.pos.y)
+        self.damage = self.turret.towerdata.damage
+        self.move_speed = self.turret.towerdata.bullet_speed
+        self.max_distance = self.turret.towerdata.range_max
+        self.image_name = self.turret.towerdata.bullet_name
+        self.create_image()
+        # ---
         self.move_direction = pygame.Vector2(1,0)
         self.aim()
         
