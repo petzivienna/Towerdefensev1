@@ -1195,7 +1195,7 @@ class SmokeSprite(VectorSprite):
     def __post_init__(self):
         self.radius = 1
         self.max_age = random.uniform(1,2)
-        self.alpha = 0
+        self.alpha = 255 # full visible
 
     def create_image(self):
         self.image=pygame.surface.Surface((20,20))
@@ -1211,7 +1211,8 @@ class SmokeSprite(VectorSprite):
         self.age += seconds
         if self.age > self.max_age:
             self.kill()
-        self.alpha = 255 * self.age / self.max_age
+        self.alpha = 255 - 255 *  self.age / self.max_age
+        self.radius = int( round(10 * self.age / self.max_age,0))
         self.create_image()
         
 
