@@ -742,7 +742,7 @@ class Viewer:
                         best_distance, closest_enemy = None, None
                         for enemy in Viewer.tankgroup:  # e for enemy
                             distance = t.pos - enemy.pos
-                            if (best_distance is None) or (distance < best_distance):
+                            if (best_distance is None) or (distance.length() < best_distance.length()):
                                 best_distance = distance
                                 closest_enemy = enemy
                         t.rotate_towards(seconds, closest_enemy)
