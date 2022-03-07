@@ -459,6 +459,27 @@ class Viewer:
                 Viewer.backgroundimage = pygame.image.load(backgroundfile)
                 Viewer.maskimage = pygame.image.load(
                     backgroundfile[:-4] + "_mask.png")
+                waypointfilename = "data/maps/" + \
+                    pathlib.Path(backgroundfile).stem + ".txt"
+                #-----load waypoints from waypointfile? -----
+                wp = pathlib.Path(waypointfilename)
+                if pathlib.Path.exists(wp):
+                    with open(waypointfilename) as myfile:
+                        lines = myfile.readlines()
+                    my_waypoints = []
+                    for line in lines:
+                        before_comma,after_comma = line.split(",")
+                        x = int(before_comma.strip())
+                        y = int(after_comma.strip())
+                        my_waypoints.append((x,y))
+                    self.window["waypointliste"].update(values=my_waypoints)
+                    self.waypoints = my_waypoints 
+                    # all tanks should obey this waypoints
+                    for tank in Viewer.tankgroup:
+                        tank.waypoints = self.waypoints
+                        if len(self.waypoints) > 0:
+                            tank.waypoint = self.waypoints[0]
+
             if event == "export waypoints":
                 # get values of Listbox "waypointliste"
                 # list
@@ -475,6 +496,7 @@ class Viewer:
                         x, y = line
                         myfile.write(f"{x},{y}\n")
                 sg.PopupOK("waypointfile written")
+
 
             if event == "waypointbutton":
                 if not waypointmodus:
