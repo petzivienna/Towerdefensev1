@@ -140,11 +140,11 @@ Tower(name="rocket",
       price=500,
       range_min=100,
       range_max=200,
-      salvo=5,
-      salvo_delay = 0.045,
-      reload_time=2.5,
+      salvo=4,
+      salvo_delay = 0.25,
+      reload_time=10,
       damage=1,
-      bullet_speed = 26,
+      bullet_speed = 66,
       bullet_error = 30,
      )
 
@@ -1152,6 +1152,7 @@ class RocketSprite(VectorSprite):
         self.image_name = self.turret.towerdata.bullet_name
         self.max_age = 25
         self.create_image()
+        self.fly_straight_duration = random.uniform(1,2)
         #self.enemy = None
         self.move = None
         self.speed_max = 200
@@ -1172,18 +1173,20 @@ class RocketSprite(VectorSprite):
         dist = self.enemy.pos - self.pos
         self.e_angle = dist.angle_to(pygame.math.Vector2(1,0))
         
-        ##self.set_angle(-self.e_angle)
-        ##self.move = pygame.Vector2(dist.x, dist.y)
+        self.set_angle(-self.e_angle)
+        self.move = pygame.Vector2(dist.x, dist.y)
         # -- slow turn?
         ##self.move = pygame.Vector2(1,0)
-        if self.look_angle == self.e_angle:
-            return
-        elif self.look_angle < self.e_angle:
-            clockwise = True
-        else: 
-            clockwise = False
-        self.move.rotate_ip(-self.rotation_speed * seconds * clockwise)
-        self.set_angle(-self.move.angle_to(pygame.Vector2(1,0)))
+        #self.e_angle = dist.angle_to(self.move_direction)
+        #print("look, e:", self.look_angle, self.e_angle)
+        #if self.look_angle == self.e_angle:
+        #    return
+        #elif self.look_angle < self.e_angle:
+        #    clockwise = True
+        #else: 
+        #    clockwise = False
+        #self.move.rotate_ip(-self.rotation_speed * seconds * clockwise)
+        #self.set_angle(-self.move.angle_to(pygame.Vector2(1,0)))
         
     
     def update(self, seconds):
@@ -1209,7 +1212,7 @@ class RocketSprite(VectorSprite):
         #print("enemy:", self.enemy)
         # update aiming  (if enemy exist)
         # do NOT aim in the first second
-        if self.age > 1.0:
+        if self.age > self.fly_straight_duration:
             self.aim_at_enemy(seconds) # create self.move
             #self.set_angle()
             # self.e_angle is now set towards enemy
