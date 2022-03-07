@@ -66,6 +66,10 @@ class Game:
     # }
     my_towers = {}
     level = 1
+    tanks_total = 0
+    tanks_killed = 0
+    tanks_passed = 0
+
 
 
 @dataclass
@@ -109,7 +113,8 @@ Tower(name="simple",
       price=100,
       range_min=25,
       range_max=150,
-      salvo=4
+      salvo=4,
+      bullet_speed = 225
       )
 
 Tower(name="medium",
@@ -120,13 +125,14 @@ Tower(name="medium",
       price=200,
       range_min=50,
       range_max=200,
+      bullet_speed = 225
       )
 
 Tower(name="laser",
       sprite_name="barrelBlack_top.png",
       barrel_name="tankDark_barrel2.png",
       bullet_type="laser",
-      damage = 0.01, # hiptoins per second
+      damage = 0.05, # hitpoins per second
       price=400,
       range_min=40,
       range_max=250,
@@ -142,10 +148,10 @@ Tower(name="rocket",
       range_max=200,
       salvo=4,
       salvo_delay = 0.25,
-      reload_time=10,
-      damage=1,
+      reload_time=5,
+      damage=8,
       bullet_speed = 66,
-      bullet_error = 90,
+      bullet_error = 30,
      )
 
 # print("towerdata:", Game.towerdata)
@@ -198,10 +204,15 @@ class Viewer:
                            key="waypointbutton", size=(18, 1)), ],
                 [sg.Button("delete waypoint"), ],
                 [sg.Button("export waypoints")],
+                [sg.Button("spawn"), sg.Button("play")],
             ]),
             sg.Column([
 
                 [sg.Listbox(values=[], size=(10, 5), key="waypointliste"), ],
+                [sg.Text("Tanks total: "),sg.Text("0", key="tanks_total") ],
+                [sg.Text("Tanks killed: "),sg.Text("0", key="tanks_killed") ],
+                [sg.Text("Tanks passed: "),sg.Text("0", key="tanks_passed") ],
+
             ]),
             sg.Graph(
                 canvas_size=(200, 100),
@@ -323,6 +334,7 @@ class Viewer:
         # NOT allgroup! TODO: check if there is wiggling hp-bar problem if bar is in allgroup
         HealthBarSprite.groups = Viewer.bargroup
         Spark.groups = Viewer.fxgroup
+        SmokeSprite.groups = Viewer.allgroup
 
         self.load_resources()
         # ----- sprite groups ----
@@ -336,6 +348,8 @@ class Viewer:
             correction_angle=90,
             move_speed=0,
             acceleration=2,
+            waypoint = None,
+            waypoints = None
         )
         # the tower image should be appear in the pygame window (canvas2) as well as in the pysimplegui graph (canvas1)
         self.tower_image = Viewer.images["barrelRust_top.png"][0]
@@ -451,6 +465,22 @@ class Viewer:
                     else:
                         tank.waypoint = None
                     tank.i = 0
+
+            if event == "spawn":
+                Tank(image_name="tank_sand.png",
+                correction_angle=90,
+                move_speed = 0,
+                acceleration=2,
+                waypoints=self.waypoints,
+                waypoint=self.waypoints[0])
+
+            if event=="play":
+                Game.tanks_total = 25
+                Game.tanks_killed = 0
+                Game.tanks_passed = 0
+                self.window["tanks_total"].update(Game.tanks_total)
+                
+
             if event == "load image":
                 backgroundfile = sg.popup_get_file(
                     "please choose background image file")
@@ -459,6 +489,27 @@ class Viewer:
                 Viewer.backgroundimage = pygame.image.load(backgroundfile)
                 Viewer.maskimage = pygame.image.load(
                     backgroundfile[:-4] + "_mask.png")
+                waypointfilename = "data/maps/" + \
+                    pathlib.Path(backgroundfile).stem + ".txt"
+                #-----load waypoints from waypointfile? -----
+                wp = pathlib.Path(waypointfilename)
+                if pathlib.Path.exists(wp):
+                    with open(waypointfilename) as myfile:
+                        lines = myfile.readlines()
+                    my_waypoints = []
+                    for line in lines:
+                        before_comma,after_comma = line.split(",")
+                        x = int(before_comma.strip())
+                        y = int(after_comma.strip())
+                        my_waypoints.append((x,y))
+                    self.window["waypointliste"].update(values=my_waypoints)
+                    self.waypoints = my_waypoints 
+                    # all tanks should obey this waypoints
+                    for tank in Viewer.tankgroup:
+                        tank.waypoints = self.waypoints
+                        if len(self.waypoints) > 0:
+                            tank.waypoint = self.waypoints[0]
+
             if event == "export waypoints":
                 # get values of Listbox "waypointliste"
                 # list
@@ -475,6 +526,7 @@ class Viewer:
                         x, y = line
                         myfile.write(f"{x},{y}\n")
                 sg.PopupOK("waypointfile written")
+
 
             if event == "waypointbutton":
                 if not waypointmodus:
@@ -708,7 +760,7 @@ class Viewer:
                         best_distance, closest_enemy = None, None
                         for enemy in Viewer.tankgroup:  # e for enemy
                             distance = t.pos - enemy.pos
-                            if (best_distance is None) or (distance < best_distance):
+                            if (best_distance is None) or (distance.length() < best_distance.length()):
                                 best_distance = distance
                                 closest_enemy = enemy
                         t.rotate_towards(seconds, closest_enemy)
@@ -790,6 +842,7 @@ class VectorSprite(pygame.sprite.Sprite):
             hitpoints_full=100,
             waypoint = None,
             age=0,
+            alpha = 0,
             max_age=None,
             max_distance=None,
             area=None,  # pygame.Rect,
@@ -1117,9 +1170,9 @@ class Spark(VectorSprite):
         self.color = (c,c,0) # yellow?
         self.move_speed = random.uniform(20,50)
         self.move_speed_max = 160
-        self.max_age = random.uniform(0.4,0.5)
+        self.max_age = random.uniform(0.2,0.5)
         self.max_distance = random.uniform(30,50)
-        self.acceleration = 80
+        self.acceleration = 20
         self.move_direction = pygame.Vector2(1,0)
         self.angle = random.randint(0,360)
         self.move_direction.rotate_ip(self.angle)
@@ -1139,10 +1192,38 @@ class Spark(VectorSprite):
                 int(round(self.pos.x, 0)), int(round(self.pos.y, 0)))
 
 
+class SmokeSprite(VectorSprite):
+
+    def __post_init__(self):
+        self.radius = 1
+        self.max_age = random.uniform(1,2)
+        self.alpha = 0
+
+    def create_image(self):
+        self.image=pygame.surface.Surface((20,20))
+        pygame.draw.circle(self.image, (255,255,255), (10,10), self.radius)
+        self.image.set_colorkey((0,0,0))
+        self.image.set_alpha(self.alpha)
+        self.image.convert_alpha()
+        self.rect = self.image.get_rect()
+        self.rect.center = (int(round(self.pos.x, 0)),
+                            int(round(self.pos.y, 0)))
+
+    def update(self, seconds):
+        self.age += seconds
+        if self.age > self.max_age:
+            self.kill()
+        self.alpha = 255 * self.age / self.max_age
+        self.radius = int(round(10*self.age/self.max_age,0))
+        self.create_image()
+        
+
+
+
+
 class RocketSprite(VectorSprite):
     """A self-guiding rocket, flying in a curvy path, tracking a tank"""
     
-
     def __post_init__(self):
         self.correction_angle = -90
         self.pos = pygame.Vector2(self.turret.pos.x, self.turret.pos.y)
@@ -1200,6 +1281,9 @@ class RocketSprite(VectorSprite):
         elif self.old_age <0 and self.age >= 0:
             self.aim_with_error()
             self.visible = True
+        
+        if random.random() < 0.1:
+            SmokeSprite(pos=pygame.Vector2(self.pos.x, self.pos.y))
        
         #self.distance_traveled += self.move_speed * seconds
         # ----- kill because... ------
@@ -1317,10 +1401,12 @@ class Tank(VectorSprite):
 
     def __post_init__(self):
         #print("tank post init")
-        self.waypoints = []
-        self.waypoint = None
+        #self.waypoints = []
+        #self.waypoint = None
         self.i = 0
         HealthBarSprite(boss_number=self.number, boss=self)
+        self.hitpoints = 25
+        self.hitpoints_full = 25
         # for collision_detection
         #w,h = self.rect.size()
         #self.radius = min(w,h)/2
