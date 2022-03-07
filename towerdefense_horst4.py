@@ -66,6 +66,10 @@ class Game:
     # }
     my_towers = {}
     level = 1
+    tanks_total = 0
+    tanks_killed = 0
+    tanks_passed = 0
+
 
 
 @dataclass
@@ -198,11 +202,15 @@ class Viewer:
                            key="waypointbutton", size=(18, 1)), ],
                 [sg.Button("delete waypoint"), ],
                 [sg.Button("export waypoints")],
-                [sg.Button("spawn")],
+                [sg.Button("spawn"), sg.Button("play")],
             ]),
             sg.Column([
 
                 [sg.Listbox(values=[], size=(10, 5), key="waypointliste"), ],
+                [sg.Text("Tanks total: "),sg.Text("0", key="tanks_total") ],
+                [sg.Text("Tanks killed: "),sg.Text("0", key="tanks_killed") ],
+                [sg.Text("Tanks passed: "),sg.Text("0", key="tanks_passed") ],
+
             ]),
             sg.Graph(
                 canvas_size=(200, 100),
@@ -324,6 +332,7 @@ class Viewer:
         # NOT allgroup! TODO: check if there is wiggling hp-bar problem if bar is in allgroup
         HealthBarSprite.groups = Viewer.bargroup
         Spark.groups = Viewer.fxgroup
+        SmokeSprite.groups = Viewer.allgroup
 
         self.load_resources()
         # ----- sprite groups ----
@@ -462,6 +471,13 @@ class Viewer:
                 acceleration=2,
                 waypoints=self.waypoints,
                 waypoint=self.waypoints[0])
+
+            if event=="play":
+                Game.tanks_total = 25
+                Game.tanks_killed = 0
+                Game.tanks_passed = 0
+                self.window["tanks_total"].update(Game.tanks_total)
+                
 
             if event == "load image":
                 backgroundfile = sg.popup_get_file(
@@ -824,6 +840,7 @@ class VectorSprite(pygame.sprite.Sprite):
             hitpoints_full=100,
             waypoint = None,
             age=0,
+            alpha = 0,
             max_age=None,
             max_distance=None,
             area=None,  # pygame.Rect,
@@ -1173,10 +1190,37 @@ class Spark(VectorSprite):
                 int(round(self.pos.x, 0)), int(round(self.pos.y, 0)))
 
 
+class SmokeSprite(VectorSprite):
+
+    def __post_init__(self):
+        self.radius = 1
+        self.max_age = random.uniform(1,2)
+        self.alpha = 0
+
+    def create_image(self):
+        self.image=pygame.surface.Surface((20,20))
+        pygame.draw.circle(self.image, (255,255,255), (10,10), self.radius)
+        self.image.set_colorkey((0,0,0))
+        self.image.set_alpha(self.alpha)
+        self.image.convert_alpha()
+        self.rect = self.image.get_rect()
+        self.rect.center = (int(round(self.pos.x, 0)),
+                            int(round(self.pos.y, 0)))
+
+    def update(self, seconds):
+        self.age += seconds
+        if self.age > self.max_age:
+            self.kill()
+        self.alpha = 255 * self.age / self.max_age
+        self.create_image()
+        
+
+
+
+
 class RocketSprite(VectorSprite):
     """A self-guiding rocket, flying in a curvy path, tracking a tank"""
     
-
     def __post_init__(self):
         self.correction_angle = -90
         self.pos = pygame.Vector2(self.turret.pos.x, self.turret.pos.y)
@@ -1234,6 +1278,9 @@ class RocketSprite(VectorSprite):
         elif self.old_age <0 and self.age >= 0:
             self.aim_with_error()
             self.visible = True
+        
+        if random.random() < 0.1:
+            SmokeSprite(pos=pygame.Vector2(self.pos.x, self.pos.y))
        
         #self.distance_traveled += self.move_speed * seconds
         # ----- kill because... ------
