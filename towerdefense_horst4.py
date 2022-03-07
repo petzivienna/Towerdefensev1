@@ -198,6 +198,7 @@ class Viewer:
                            key="waypointbutton", size=(18, 1)), ],
                 [sg.Button("delete waypoint"), ],
                 [sg.Button("export waypoints")],
+                [sg.Button("spawn")],
             ]),
             sg.Column([
 
@@ -336,6 +337,8 @@ class Viewer:
             correction_angle=90,
             move_speed=0,
             acceleration=2,
+            waypoint = None,
+            waypoints = None
         )
         # the tower image should be appear in the pygame window (canvas2) as well as in the pysimplegui graph (canvas1)
         self.tower_image = Viewer.images["barrelRust_top.png"][0]
@@ -451,6 +454,15 @@ class Viewer:
                     else:
                         tank.waypoint = None
                     tank.i = 0
+
+            if event == "spawn":
+                Tank(image_name="tank_sand.png",
+                correction_angle=90,
+                move_speed = 0,
+                acceleration=2,
+                waypoints=self.waypoints,
+                waypoint=self.waypoints[0])
+
             if event == "load image":
                 backgroundfile = sg.popup_get_file(
                     "please choose background image file")
@@ -1339,8 +1351,8 @@ class Tank(VectorSprite):
 
     def __post_init__(self):
         #print("tank post init")
-        self.waypoints = []
-        self.waypoint = None
+        #self.waypoints = []
+        #self.waypoint = None
         self.i = 0
         HealthBarSprite(boss_number=self.number, boss=self)
         # for collision_detection
