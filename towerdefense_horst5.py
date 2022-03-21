@@ -142,12 +142,11 @@ Tower(name="laser",
 Tower(name="flame",
       sprite_name="barrelRust_top.png",
       barrel_name="specialBarrel5.png",
-      bullet_name="bulletDark2_outline.png",
+      #bullet_name="bulletDark2_outline.png",
       bullet_type="flame",
       price=80,
       range_min=10,
       range_max=70,
-      
       salvo=10,
       salvo_delay = 0.25,
       reload_time=5,
@@ -155,6 +154,21 @@ Tower(name="flame",
       bullet_speed = 60,
       bullet_error = 10,
      )
+
+Tower(name="ice",
+      sprite_name="barrelRust_top.png",
+      barrel_name="specialBarrel2.png",
+      #bullet_name="bulletDark2_outline.png",
+      bullet_type="ice",
+      price = 40,
+      range_min = 15,
+      range_max = 80,
+      salvo = 10,
+      salvo_delay = 0.25,
+      reload_time = 4,
+      bullet_speed = 30,
+      bullet_error = 10,
+)
 
 Tower(name="seeker",
       sprite_name="barrelRust_top.png",
@@ -200,6 +214,7 @@ class Viewer:
     towergroup = pygame.sprite.Group()
     bulletgroup = pygame.sprite.Group()
     flamegroup = pygame.sprite.Group()
+    icegroup = pygame.sprite.Group()
     cursorgroup = pygame.sprite.GroupSingle()
     maskgroup = pygame.sprite.GroupSingle()
     placemodusgroup = pygame.sprite.GroupSingle()
@@ -353,6 +368,8 @@ class Viewer:
         MaskSprite.groups = Viewer.maskgroup
         BulletSprite.groups = Viewer.allgroup, Viewer.bulletgroup
         FlameSprite.groups = Viewer.allgroup, Viewer.flamegroup
+        FreezeSprite.groups = Viewer.allgroup, Viewer.icegroup
+        IceSprite.groups = Viewer.allgroup
         #RocketSprite.groups = Viewer.allgroup, Viewer.bulletgroup
         RocketSprite2.groups = Viewer.allgroup, Viewer.bulletgroup
         # NOT allgroup! TODO: check if there is wiggling hp-bar problem if bar is in allgroup
@@ -493,8 +510,8 @@ class Viewer:
             if event == "spawn":
                 Tank(image_name="tank_sand.png",
                 correction_angle=90,
-                move_speed = 0,
-                acceleration=2,
+                move_speed = 100,     # Peter 
+                acceleration=0,
                 waypoints=self.waypoints,
                 waypoint=self.waypoints[0])
 
@@ -771,6 +788,16 @@ class Viewer:
                     for flame in crashgroup2:
                         #enemy.hitpoints -= flame.damage
                         enemy.burn_until = enemy.age + flame.burn_duration
+
+                    crashgroup3 = pygame.sprite.spritecollide(
+                        sprite=enemy,
+                        group=Viewer.icegroup,
+                        dokill = False,
+                        collided=pygame.sprite.collide_rect_ratio(0.7))
+                    for snow in crashgroup3:
+                        #enemy.hitpoints -= flame.damage
+                        enemy.freeze_until = enemy.age + snow.burn_duration
+
                     
 
                 # ---------- blit all sprites --------------
@@ -1145,6 +1172,11 @@ class TowerSprite(VectorSprite):
             for b in range(self.towerdata.salvo):
                 start_time = b * self.towerdata.salvo_delay
                 FlameSprite(turret=self, age = -start_time)
+
+        elif self.towerdata.bullet_type == "ice":
+            for b in range(self.towerdata.salvo):
+                start_time = b * self.towerdata.salvo_delay
+                FreezeSprite(turret=self, age = -start_time)
            
         
         # elif self.towerdata.bullet_type == "rocket":
@@ -1262,6 +1294,36 @@ class SmokeSprite(VectorSprite):
             self.kill()
         self.alpha = 255 - 255 *  self.age / self.max_age
         self.radius = int( round(10 * self.age / self.max_age,0))
+        self.create_image()
+        
+
+class IceSprite(VectorSprite):
+
+    def __post_init__(self):
+        self.radius = random.randint(2,10)
+        self.max_age = random.uniform(1,2)
+        self.alpha = 255 # full visible
+
+    def create_image(self):
+        print("huhu")
+        self.image=pygame.surface.Surface((self.radius, self.radius))
+        #pygame.draw.circle(self.image, self.color, (10,10), self.radius)
+        c = random.randint(0,255)
+        pygame.Surface.fill(self.image, (c,c,255))
+        self.image.set_colorkey((0,0,0))
+        self.image.set_alpha(self.alpha)
+        self.image.convert_alpha()
+        self.rect = self.image.get_rect()
+        print("hoho")
+        self.rect.center = (int(round(self.pos.x, 0)),
+                            int(round(self.pos.y, 0)))
+
+    def update(self, seconds):
+        self.age += seconds
+        if self.age > self.max_age:
+            self.kill()
+        self.alpha = 255 - 255 *  self.age / self.max_age
+        #self.radius = int( round(10 * self.age / self.max_age,0))
         self.create_image()
         
 
@@ -1437,6 +1499,28 @@ class FlameSprite(BulletSprite):
         super().update(seconds)
         self.create_image()
 
+class FreezeSprite(FlameSprite):
+    
+    def create_image(self):
+        self.image = pygame.Surface((30,30))
+        # percent of age ?
+        if self.max_age is None:
+            self.max_age = 3
+        print("self age, max_age", self.age, self.max_age)
+        self.radius = int((self.age / self.max_age) * self.max_radius)
+        self.radius = max(self.min_radius, self.radius) # minimal value of 1
+        #color = (random.randint(128,255), 128, 0)
+        c = random.randint(192,255)
+        color = (c,c,c)
+        pygame.draw.circle(self.image, color, (15,15), self.radius )
+        self.image.set_colorkey((0,0,0))
+        self.image.convert_alpha()
+        self.image0 = self.image.copy()
+        self.rect = self.image.get_rect()
+        self.mask = pygame.mask.from_surface(self.image)
+        self.rect.center = (
+            int(round(self.pos[0], 0)), int(round(self.pos[1], 0)))
+
 
 class Tank(VectorSprite):
     near_enough = 10  # pixel
@@ -1451,10 +1535,21 @@ class Tank(VectorSprite):
         #w,h = self.rect.size()
         #self.radius = min(w,h)/2
         self.burn_until = 0
+        self.freeze_until = 0
+        self.freeze_factor = 0.2
 
     def update(self, seconds):
         self.get_next_waypoint()
-        super().update(seconds)
+        
+        if self.freeze_until > self.age:
+            if random.random() < 0.1:
+                IceSprite(pos=pygame.Vector2(self.pos.x + random.randint(-20,20),
+                                             self.pos.y + random.randint(-20,20)))
+            super().update(seconds * self.freeze_factor)
+            self.hitpoints -= 1 * seconds
+        else:
+            super().update(seconds)
+
         if self.burn_until > self.age:
             #FlameSprite(boss_number=self.number,age=2)
             c = random.randint(1,64)
