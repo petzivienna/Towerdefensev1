@@ -187,7 +187,20 @@ Tower(name="seeker",
       rotation_speed= 60,
      )
 
-
+Tower(name="mortar",
+      sprite_name="barrelBlack_top.png",
+      barrel_name="tankDark_barrel3.png",
+      bullet_name="bulletDark2_outline.png",
+      bullet_type="mortar",
+      range_min=200,
+      range_max=350,
+      salvo=2,
+      salvo_delay = 0.5,
+      price=200,
+      reload_time = 10,
+      bullet_speed = 20,
+      bullet_error = 1
+)
 
 # print("towerdata:", Game.towerdata)
 
@@ -1164,6 +1177,11 @@ class TowerSprite(VectorSprite):
                 BulletSprite(turret = self, age= -start_time)
 
         
+        elif self.towerdata.bullet_type == "mortar":
+            for b in range(self.towerdata.salvo):
+                start_time = b * self.towerdata.salvo_delay
+                MortarSprite(turret = self, age = -start_time)
+
         elif self.towerdata.bullet_type == "laser":
             pass # laser drawing and damage is handled in Viewer.run (Timeout event)
 
