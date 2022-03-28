@@ -1459,7 +1459,7 @@ class BulletSprite(VectorSprite):
                             int(round(self.pos.y, 0)))
                             
                             
-class MortarSprite(Bulletsprite):
+class MortarSprite(BulletSprite):
 	pass
 
 class FlameSprite(BulletSprite):
