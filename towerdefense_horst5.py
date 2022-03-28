@@ -133,7 +133,7 @@ Tower(name="laser",
       sprite_name="barrelBlack_top.png",
       barrel_name="tankDark_barrel2.png",
       bullet_type="laser",
-      damage = 0.01, # hiptoins per second
+      damage = 0.05, # hiptoins per second
       price=400,
       range_min=40,
       range_max=250,
@@ -144,14 +144,14 @@ Tower(name="flame",
       barrel_name="specialBarrel5.png",
       #bullet_name="bulletDark2_outline.png",
       bullet_type="flame",
-      price=80,
+      price=220,
       range_min=10,
-      range_max=70,
+      range_max=220,
       salvo=10,
       salvo_delay = 0.25,
       reload_time=5,
       damage=1,
-      bullet_speed = 60,
+      bullet_speed = 100,
       bullet_error = 10,
      )
 
@@ -160,13 +160,13 @@ Tower(name="ice",
       barrel_name="specialBarrel2.png",
       #bullet_name="bulletDark2_outline.png",
       bullet_type="ice",
-      price = 40,
+      price = 200,
       range_min = 15,
-      range_max = 80,
+      range_max = 250,
       salvo = 10,
       salvo_delay = 0.25,
       reload_time = 4,
-      bullet_speed = 30,
+      bullet_speed = 100,
       bullet_error = 10,
 )
 
@@ -175,7 +175,7 @@ Tower(name="seeker",
       barrel_name="specialBarrel3.png",
       bullet_name="bulletDark2_outline.png",
       bullet_type="seeker",
-      price=50,
+      price=350,
       range_min=100,
       range_max=400,
       salvo=4,
@@ -183,24 +183,11 @@ Tower(name="seeker",
       salvo_angle = 15,
       reload_time=4,
       damage=1,
-      bullet_speed = 80,
-      rotation_speed= 60,
+      bullet_speed = 200,
+      rotation_speed= 100,
      )
 
-Tower(name="mortar",
-      sprite_name="barrelBlack_top.png",
-      barrel_name="tankDark_barrel3.png",
-      bullet_name="bulletDark2_outline.png",
-      bullet_type="mortar",
-      range_min=200,
-      range_max=350,
-      salvo=2,
-      salvo_delay = 0.5,
-      price=200,
-      reload_time = 10,
-      bullet_speed = 20,
-      bullet_error = 1
-)
+
 
 # print("towerdata:", Game.towerdata)
 
@@ -1177,11 +1164,6 @@ class TowerSprite(VectorSprite):
                 BulletSprite(turret = self, age= -start_time)
 
         
-        elif self.towerdata.bullet_type == "mortar":
-            for b in range(self.towerdata.salvo):
-                start_time = b * self.towerdata.salvo_delay
-                MortarSprite(turret = self, age = -start_time)
-
         elif self.towerdata.bullet_type == "laser":
             pass # laser drawing and damage is handled in Viewer.run (Timeout event)
 
@@ -1475,6 +1457,10 @@ class BulletSprite(VectorSprite):
         self.pos += self.move_direction.normalize() * self.move_speed * seconds
         self.rect.center = (int(round(self.pos.x, 0)),
                             int(round(self.pos.y, 0)))
+                            
+                            
+class MortarSprite(Bulletsprite):
+	pass
 
 class FlameSprite(BulletSprite):
     """slow-moving fireball"""
@@ -1555,6 +1541,8 @@ class Tank(VectorSprite):
         self.burn_until = 0
         self.freeze_until = 0
         self.freeze_factor = 0.2
+        self.hitpoints = 15
+        self.hitpoints_full = 15
 
     def update(self, seconds):
         self.get_next_waypoint()
