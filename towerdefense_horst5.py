@@ -214,6 +214,7 @@ class Viewer:
     towergroup = pygame.sprite.Group()
     bulletgroup = pygame.sprite.Group()
     flamegroup = pygame.sprite.Group()
+    textgroup = pygame.sprite.Group()
     icegroup = pygame.sprite.Group()
     cursorgroup = pygame.sprite.GroupSingle()
     maskgroup = pygame.sprite.GroupSingle()
@@ -377,6 +378,8 @@ class Viewer:
         HealthBarSprite.groups = Viewer.bargroup
         Spark.groups = Viewer.fxgroup
         SmokeSprite.groups = Viewer.allgroup
+        StaticText.groups = Viewer.textgroup
+        MovingText.groups = Viewer.textgroup
 
         self.load_resources()
         # ----- sprite groups ----
@@ -428,7 +431,7 @@ class Viewer:
         Viewer.backgroundimage = pygame.image.load("data/maps/petermap2.png")
         # Viewer.maskimage = pygame.image.load("data/maps/petermap2_mask.png")
         # create mask sprite:
-        MaskSprite(image=pygame.image.load("data/maps/petermap2_mask.png"))
+        Viewer.maskimage = MaskSprite(image=pygame.image.load("data/maps/petermap2_mask.png"))
 
         # -------------- load tileset, sprites etc ------------
 
@@ -487,7 +490,7 @@ class Viewer:
         my_tower = None
         backgroundfile = None
         red_cross = True
-        bigmask = Viewer.maskgroup.sprite
+        self.bigmask = Viewer.maskgroup.sprite
 
         while running:
             # pysimpleGui
@@ -548,8 +551,12 @@ class Viewer:
                 if backgroundfile is None:
                     continue
                 Viewer.backgroundimage = pygame.image.load(backgroundfile)
-                Viewer.maskimage = pygame.image.load(
-                    backgroundfile[:-4] + "_mask.png")
+                #Viewer.maskimage = pygame.image.load(
+                #    backgroundfile[:-4] + "_mask.png")
+                maskname = backgroundfile[:-4] + "_mask.png"
+                #Viewer.maskimage = None
+                Viewer.maskimage =  MaskSprite(image=pygame.image.load(maskname))
+                self.bigmask = Viewer.maskgroup.sprite
                 waypointfilename = "data/maps/" + \
                     pathlib.Path(backgroundfile).stem + ".txt"
                 #-----load waypoints from waypointfile? -----
@@ -731,10 +738,10 @@ class Viewer:
                     self.screen.blit(Viewer.backgroundimage, (0, 0))
                 # -------- edit mousepointer when in place-tower-mode -----------------
                 if my_tower is not None:
-                    if bigmask:
+                    if self.bigmask:
                         # if Viewer.maskgroup(): # any strite at all inside maskgropu?
                         collisions = pygame.sprite.collide_mask(
-                            bigmask, my_tower)
+                            self.bigmask, my_tower)
                         if collisions is None:
                             red_cross = False
                         else:
@@ -778,6 +785,7 @@ class Viewer:
                 self.allgroup.update(seconds)
                 self.bargroup.update(seconds)
                 self.fxgroup.update(seconds)
+                self.textgroup.update(seconds)
                
 
                        
@@ -824,6 +832,7 @@ class Viewer:
                 self.allgroup.draw(self.screen)
                 self.bargroup.draw(self.screen)
                 self.fxgroup.draw(self.screen)
+                self.textgroup.draw(self.screen)
                 # ---- special for tanks only -----
                 # --- blit red line from each tank to his next waypoint
                 for tank in Viewer.tankgroup:
@@ -1125,6 +1134,18 @@ class VectorSprite(pygame.sprite.Sprite):
         self.rect.center = (int(round(self.pos.x, 0)),
                             int(round(self.pos.y, 0)))
 
+
+class StaticText(pygame.sprite.Sprite):
+    def __init__(self, pos, text, textcolor=None, backgroundcolor=None, textalpha=1.0, backgroundalpha=0.0,
+                 fontsize=15):
+            # TODO create pygame Text Sprite
+            pass 
+
+class MovingText(pygame.sprite.Sprite):
+    def __init__(self, pos, text, textcolor=None, backgroundcolor=None, textalpha=1.0, backgroundalpha=0.0,
+                 fontsize=15):
+            # TODO create pygame Text Sprite
+            pass 
 
 class PlacemodusTower(VectorSprite):
     def __post_init__(self):
