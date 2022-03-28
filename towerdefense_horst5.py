@@ -242,6 +242,7 @@ class Viewer:
                 [sg.Button("delete waypoint"), ],
                 [sg.Button("export waypoints")],
                 [sg.Button("spawn"), sg.Button("play")],
+                [sg.Button("wave")],
             ]),
             sg.Column([
 
@@ -508,12 +509,31 @@ class Viewer:
                     tank.i = 0
 
             if event == "spawn":
+                #print("spaning at:", self.waypoints[0])
                 Tank(image_name="tank_sand.png",
+                pos=pygame.Vector2(self.waypoints[0][0], self.waypoints[0][1]),
                 correction_angle=90,
                 move_speed = 100,     # Peter 
                 acceleration=0,
                 waypoints=self.waypoints,
                 waypoint=self.waypoints[0])
+
+            if event == "wave":
+                for a in range(20):
+                    x = random.randint(-250,-150)
+                    y = random.randint(-250, -150)
+                    
+                    Tank(image_name="tank_sand.png",
+                    pos=pygame.Vector2(x,y),
+                    age=-5 -a*2,
+                    correction_angle=90,
+                    move_speed = 100,     # Peter 
+                    acceleration=0,
+                    waypoints=self.waypoints,
+                    waypoint=self.waypoints[0])
+
+                
+
 
             if event=="play":
                 Game.tanks_total = 25
@@ -1543,10 +1563,17 @@ class Tank(VectorSprite):
         self.freeze_factor = 0.2
         self.hitpoints = 15
         self.hitpoints_full = 15
+        self.final_destination = False
 
     def update(self, seconds):
         self.get_next_waypoint()
-        
+        if self.age < 0:
+            self.age += seconds
+            self.visible = False
+            return 
+        else:
+            self.visible = True
+
         if self.freeze_until > self.age:
             if random.random() < 0.1:
                 IceSprite(pos=pygame.Vector2(self.pos.x + random.randint(-20,20),
@@ -1572,9 +1599,16 @@ class Tank(VectorSprite):
         flipped = pygame.Vector2(self.move_direction.x, -self.move_direction.y)
         self.set_angle(flipped.angle_to(pygame.Vector2(1, 0)))
         if self.move_direction.length() < Tank.near_enough:
+            if self.final_destination:
+                self.kill()
+                return
             self.i += 1
             if self.i == len(self.waypoints):
-                self.i = 0
+                self.final_destination = True
+                self.waypoint = pygame.Vector2(Viewer.resolution[0] * 1.2, Viewer.resolution[1] * 1.2)
+                return
+                # ------ cycle back to first waypoint ----
+                #self.i = 0
             self.waypoint = self.waypoints[self.i]
 
 # TODO: method to cancel tower placement / get "normal" mousepointer back (after interacting with tkinter while tower placement is active)
