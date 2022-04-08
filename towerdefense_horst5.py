@@ -1,4 +1,5 @@
 import pygame
+import pygame.freetype
 import PySimpleGUI as sg
 from PIL import Image, ImageTk
 import base64
@@ -55,6 +56,7 @@ def tk2pygame(tkimage):
 # ---------------------------
 
 class Game:
+    lives = 50 # how many enemy tanks must reach final destination before game over
     gold = 1400
     towerdata = {}  # name: dataclass-instance
     sell_factor = 0.5
@@ -66,6 +68,9 @@ class Game:
     # }
     my_towers = {}
     level = 1
+    current_wave = 1
+    waves_per_level = 5
+    tanks_per_wave = 20
     tanks_total = 0
     tanks_killed = 0
     tanks_passed = 0
@@ -419,6 +424,7 @@ class Viewer:
         self.duration_one_flame_frame = duration_all_flames / \
             len(Viewer.flame_images)
         # self.end_flame = time.time() + duration_all_flames/len(Viewer.flamenames) #full animation in 1 second
+        pygame.freetype.init()
         self.run()
 
     def load_resources(self):
@@ -539,10 +545,13 @@ class Viewer:
 
 
             if event=="play":
-                Game.tanks_total = 25
+                Game.level = 1
+                Game.lives = 500
+                Game.current_wave = 1
+                Game.tanks_total = Game.waves_per_level * Game.tanks_per_wave
                 Game.tanks_killed = 0
                 Game.tanks_passed = 0
-                self.window["tanks_total"].update(Game.tanks_total)
+                #self.window["tanks_total"].update(Game.tanks_total)
                 
 
             if event == "load image":
@@ -655,7 +664,7 @@ class Viewer:
 
             # --------- timeout event, does the pygame loop ---------------
             if event == sg.TIMEOUT_EVENT:
-
+                self.window["gold_text"].update(Game.gold)
                 # get mouse location: window.mouse_location() returns ABSOLUTE mouse position of whole screen!
                 self.window["show_mouse_pos_absolute"].update(
                     self.window.mouse_location()
@@ -866,7 +875,19 @@ class Viewer:
                                 closest_enemy.hitpoints -= t.towerdata.damage
 
                             
-
+                # -------- blit text
+                font = pygame.freetype.SysFont("Arial",22)
+                font.render_to(self.screen, (10,10), "Gold: {} Lives: {} Level: {} Wave: {}/{} Tanks left: {}/{} killed: {} passed: {}".format(
+                                Game.gold,
+                                Game.lives,
+                                Game.level,
+                                Game.current_wave,
+                                Game.waves_per_level,
+                                len(Viewer.tankgroup),
+                                Game.tanks_per_wave,
+                                Game.tanks_killed,
+                                Game.tanks_passed,
+                                ))
 
                 # ----------- blit screen -------------------------
                 pygame.display.update()  # need to be called each loop
@@ -1585,6 +1606,10 @@ class Tank(VectorSprite):
         self.hitpoints = 15
         self.hitpoints_full = 15
         self.final_destination = False
+        self.gold_value = 50
+        self.damage = 1 # how many lives the tank substract from player if tank reach final destination
+
+    
 
     def update(self, seconds):
         self.get_next_waypoint()
@@ -1613,6 +1638,11 @@ class Tank(VectorSprite):
             # TODO: relative position of flame
             self.hitpoints -= 1 * seconds
 
+    def kill(self):
+        Game.gold += self.gold_value
+        Game.tanks_killed += 1
+        super().kill()
+
     def get_next_waypoint(self):
         if self.waypoint is None:
             return
@@ -1621,6 +1651,8 @@ class Tank(VectorSprite):
         self.set_angle(flipped.angle_to(pygame.Vector2(1, 0)))
         if self.move_direction.length() < Tank.near_enough:
             if self.final_destination:
+                Game.tanks_passed += 1
+                Game.lives -= self.damage
                 self.kill()
                 return
             self.i += 1
