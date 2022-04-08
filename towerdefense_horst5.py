@@ -687,7 +687,7 @@ class Viewer:
                 if (Game.level > 0) and len(Viewer.tankgroup) == 0:
                     Game.current_wave += 1
                     if Game.current_wave == Game.waves_per_level:
-                        Game.current_wave = 0
+                        Game.current_wave = 1
                         Game.level += 1
                         # TODO load new map etc
                     self.new_wave(Game.tanks_per_wave)
