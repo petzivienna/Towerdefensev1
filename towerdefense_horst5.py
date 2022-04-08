@@ -67,7 +67,7 @@ class Game:
     #    "minelayer tower": 75,
     # }
     my_towers = {}
-    level = 1
+    level = 0 # 0 is for testing. real play start with level== 1
     current_wave = 1
     waves_per_level = 5
     tanks_per_wave = 20
@@ -484,6 +484,22 @@ class Viewer:
         # for i in range(1,9):
         #    Viewer.flame_images.append(pygame.image.load(os.path.join("data", f"flame{i}.png")))
 
+
+    def new_wave(self, howmuch=20):
+        for a in range(howmuch):
+            x = random.randint(-250,-150)
+            y = random.randint(-250, -150)
+            
+            Tank(image_name="tank_sand.png",
+            pos=pygame.Vector2(x,y),
+            age=-5 -a*2,
+            correction_angle=90,
+            move_speed = 100,     # Peter 
+            acceleration=0,
+            waypoints=self.waypoints,
+            waypoint=self.waypoints[0])
+
+
     def run(self):
         i = 0
         end_fire = 0
@@ -528,23 +544,15 @@ class Viewer:
                 waypoint=self.waypoints[0])
 
             if event == "wave":
-                for a in range(20):
-                    x = random.randint(-250,-150)
-                    y = random.randint(-250, -150)
-                    
-                    Tank(image_name="tank_sand.png",
-                    pos=pygame.Vector2(x,y),
-                    age=-5 -a*2,
-                    correction_angle=90,
-                    move_speed = 100,     # Peter 
-                    acceleration=0,
-                    waypoints=self.waypoints,
-                    waypoint=self.waypoints[0])
-
+                self.new_wave()
+               
                 
 
 
             if event=="play":
+                # kill all current tanks
+                for t in Viewer.tankgroup:
+                    tank.kill()
                 Game.level = 1
                 Game.lives = 500
                 Game.current_wave = 1
@@ -552,6 +560,7 @@ class Viewer:
                 Game.tanks_killed = 0
                 Game.tanks_passed = 0
                 #self.window["tanks_total"].update(Game.tanks_total)
+                self.new_wave(Game.tanks_per_wave)
                 
 
             if event == "load image":
@@ -674,6 +683,14 @@ class Viewer:
                 # for event in pygame.event.get():
                 # print("pygame_event:", event)
                 #    if event in
+                # .............. new wave / new level ......................
+                if (Game.level > 0) and len(Viewer.tankgroup) == 0:
+                    Game.current_wave += 1
+                    if Game.current_wave == Game.waves_per_level:
+                        Game.current_wave = 0
+                        Game.level += 1
+                        # TODO load new map etc
+                    self.new_wave(Game.tanks_per_wave)
 
                 # ---- pygame part (mainloop ) ----------
                 pygame_events = pygame.event.get()
@@ -1603,8 +1620,11 @@ class Tank(VectorSprite):
         self.burn_until = 0
         self.freeze_until = 0
         self.freeze_factor = 0.2
-        self.hitpoints = 15
+        self.hitpoints = 15 
         self.hitpoints_full = 15
+        if Game.level > 0:
+            self.hitpoints = int(30 * Game.current_wave * 0.5)
+            self.hitpoints_full = int(30 * Game.current_wave * 0.5)
         self.final_destination = False
         self.gold_value = 50
         self.damage = 1 # how many lives the tank substract from player if tank reach final destination
